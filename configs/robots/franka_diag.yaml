@@ -1,0 +1,15 @@
+name: franka_diag
+# DIAGNOSTIC-ONLY variant: velocity/force safety limits relaxed well above
+# the operational values to let a policy move freely during an A/B diagnosis
+# of "safety limits interrupt the model" vs "model cannot attempt the task".
+# NOT a permanent config. Operational limits live in franka.yaml.
+mjcf_path: ../../assets/menagerie/franka_emika_panda/panda_vel.xml
+
+safety:
+  max_velocity: 5.0      # rad/s per joint  (operational: 0.6)
+  max_force: 300.0       # Nm per joint     (operational: 20.0)
+  max_effort_action: 1.0 # gripper command bound (unchanged)
+  reject_nan_actions: true
+  action_clamp: reject   # unchanged
+  recovery_steps: 50     # unchanged
+  recovery_mode: resume

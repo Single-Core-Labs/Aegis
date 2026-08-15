@@ -1,0 +1,5 @@
+name: random
+kind: random
+policy:
+  kind: random
+  seed: 0

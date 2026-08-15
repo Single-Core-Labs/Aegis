@@ -1,0 +1,9 @@
+name: smolvla_libero
+kind: smolvla
+endpoint: lerobot/smolvla_libero
+load_params:
+  device: auto
+policy:
+  kind: smolvla
+  instruction: pick up the red cube and place it on the green target
+  cameras: [camera1, camera2, camera3]

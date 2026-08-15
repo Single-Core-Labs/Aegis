@@ -1,0 +1,32 @@
+# aegis POC root config — DIAGNOSTIC ONLY (relaxed limits A/B).
+#
+# Purpose: determine whether the 0/3 zero-shot smolvla result is (a) the
+# safety gateway's velocity/force limits interrupting the model, or (b) the
+# model genuinely not attempting the task. Selects the relaxed-limit robot
+# config (configs/robots/franka_diag.yaml) and raises the inference budget
+# above the measured cold-start cost (5.1 s) so the budget enforcement itself
+# does not contaminate the diagnostic. NOT for operational use; operational
+# values live in physical-ai.yaml + configs/robots/franka.yaml.
+
+model_name: smolvla_libero
+robot_name: franka_diag
+task_name: pick-place
+
+eval:
+  episodes: 2
+  seed: 42
+  max_steps_per_episode: 600
+  time_step: 0.02
+  episode_timeout_sec: 60.0
+  inference_mode: cuda
+  inference_budget_ms: 10000.0
+
+environment:
+  sim: mujoco
+  scene_mjcf: assets/scenes/pick_place.xml
+  robot_name: franka_diag
+  control_mode: joint_velocity
+
+output:
+  dir: ./outputs
+  report_format: json

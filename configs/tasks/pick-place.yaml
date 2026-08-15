@@ -1,0 +1,5 @@
+name: pick-place
+success_threshold_m: 0.05
+object_name: object
+target_name: target
+max_grasp_attempts: 3

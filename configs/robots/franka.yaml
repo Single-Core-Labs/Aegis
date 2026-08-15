@@ -1,0 +1,13 @@
+name: franka
+# MuJoCo Menagerie Franka Emika Panda, joint-velocity actuated variant.
+mjcf_path: ../../assets/menagerie/franka_emika_panda/panda_vel.xml
+
+safety:
+  # POC simplification: uniform per-joint limits (real robots need per-joint).
+  max_velocity: 0.6      # rad/s per joint
+  max_force: 20.0        # Nm per joint (measured actuator torque)
+  max_effort_action: 1.0 # gripper command bound (normalized units)
+  reject_nan_actions: true
+  action_clamp: reject   # strict by default: reject, do not clamp
+  recovery_steps: 50     # fallback steps before resuming the policy
+  recovery_mode: resume

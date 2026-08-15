@@ -1,0 +1,53 @@
+<mujoco model="aegis pick-place scene">
+  <include file="../menagerie/franka_emika_panda/panda_vel.xml"/>
+
+  <compiler angle="radian" meshdir="../menagerie/franka_emika_panda/assets"/>
+
+  <option timestep="0.02" integrator="implicitfast" cone="pyramidal"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="120" elevation="-20"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
+      markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+    <material name="table" rgba="0.45 0.45 0.48 1"/>
+    <material name="object" rgba="0.9 0.2 0.2 1"/>
+    <material name="target" rgba="0.1 0.8 0.2 0.5"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+
+    <body name="table" pos="0.55 0 0.42">
+      <geom name="table_top" type="box" size="0.35 0.35 0.02" material="table" friction="1 0.005 0.0001"/>
+      <geom name="table_leg_1" type="box" size="0.02 0.02 0.35" pos="-0.3 -0.3 -0.35" material="table"/>
+      <geom name="table_leg_2" type="box" size="0.02 0.02 0.35" pos="0.3 -0.3 -0.35" material="table"/>
+      <geom name="table_leg_3" type="box" size="0.02 0.02 0.35" pos="-0.3 0.3 -0.35" material="table"/>
+      <geom name="table_leg_4" type="box" size="0.02 0.02 0.35" pos="0.3 0.3 -0.35" material="table"/>
+    </body>
+
+    <body name="object" pos="0.55 0 0.465">
+      <freejoint/>
+      <geom name="object_geom" type="box" size="0.025 0.025 0.025" material="object" friction="1 0.005 0.0001"/>
+    </body>
+
+    <body name="target" pos="0.38 0.22 0.442">
+      <geom name="target_geom" type="cylinder" size="0.04 0.002" material="target" contype="0" conaffinity="0"/>
+    </body>
+
+    <!-- Fixed third-person views for the SmolVLA image observations.
+         camera2 is a wrist-like fixed view (the menagerie hand body cannot be
+         extended with a child camera from this scene file). zaxis aims each
+         camera at the pick workspace (camera looks along -z). -->
+    <camera name="camera1" pos="0.95 0.05 0.75" zaxis="0.894 0 0.447" fovy="50"/>
+    <camera name="camera2" pos="0.55 0.45 0.85" zaxis="0.172 0.772 0.600" fovy="50"/>
+    <camera name="camera3" pos="0.25 -0.6 0.6" zaxis="-0.351 -0.912 0.210" fovy="50"/>
+  </worldbody>
+</mujoco>

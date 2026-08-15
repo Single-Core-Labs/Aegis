@@ -1,0 +1,26 @@
+# aegis POC root config.
+# Component configs live in configs/{models,robots,tasks}/ and are selected by
+# the --model/--robot/--tasks CLI flags (or these defaults).
+
+model_name: random
+robot_name: franka
+task_name: pick-place
+
+eval:
+  episodes: 10
+  seed: 42
+  max_steps_per_episode: 2500
+  time_step: 0.02
+  episode_timeout_sec: 60.0
+  inference_mode: cpu
+  inference_budget_ms: 2000.0
+
+environment:
+  sim: mujoco
+  scene_mjcf: assets/scenes/pick_place.xml
+  robot_name: franka
+  control_mode: joint_velocity
+
+output:
+  dir: ./outputs
+  report_format: json

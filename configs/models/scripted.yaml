@@ -1,0 +1,6 @@
+name: scripted
+kind: scripted
+policy:
+  kind: scripted
+  home_qpos: null
+  velocity_limit: 0.4
