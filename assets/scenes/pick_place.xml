@@ -1,3 +1,4 @@
+
 <mujoco model="aegis pick-place scene">
   <include file="../menagerie/franka_emika_panda/panda_vel.xml"/>
 

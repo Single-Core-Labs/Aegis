@@ -4,7 +4,11 @@ mjcf_path: ../../assets/menagerie/franka_emika_panda/panda_vel.xml
 
 safety:
   # POC simplification: uniform per-joint limits (real robots need per-joint).
-  max_velocity: 0.6      # rad/s per joint
+  # max_velocity must keep >=2x headroom over the SmolVLA adapter's velocity
+  # clamp (0.5 rad/s, src/aegis/policies/smolvla.py) so normal adapter output
+  # plus controller transient overshoot does not chronically trip the
+  # gateway. Regression-tested in tests/test_policy_model.py.
+  max_velocity: 1.0      # rad/s per joint
   max_force: 20.0        # Nm per joint (measured actuator torque)
   max_effort_action: 1.0 # gripper command bound (normalized units)
   reject_nan_actions: true

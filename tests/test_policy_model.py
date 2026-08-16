@@ -148,6 +148,77 @@ class TestAdapterMath:
         assert np.isfinite(vel).all()
         assert np.abs(vel).max() <= 0.5 + 1e-9
 
+    def test_default_velocity_limit_has_headroom_over_adapter_clamp(self) -> None:
+        # Regression for the Phase 2 diagnostic: the 0.6 rad/s default limit
+        # sat against the adapter's 0.5 clamp, so controller transient
+        # overshoot chronically tripped the gateway. The default must keep
+        # >=2x headroom over the clamp.
+        import yaml
+
+        from aegis.policies.smolvla import MAX_JOINT_VEL
+
+        raw = yaml.safe_load(
+            (REPO / "configs" / "robots" / "franka.yaml").read_text(encoding="utf-8")
+        )
+        limit = raw["safety"]["max_velocity"]
+        assert limit >= 2 * MAX_JOINT_VEL, (
+            f"default max_velocity {limit} must keep >=2x headroom over the "
+            f"adapter clamp {MAX_JOINT_VEL}"
+        )
+
+    def test_adapter_output_stays_under_default_limit_in_env(self) -> None:
+        # Drive the real env with resolved-rate-adapted cartesian deltas (the
+        # SmolVLA adapter math) toward the cube; assert commanded velocities
+        # stay within the adapter clamp and measured velocities stay under the
+        # default safety limit with headroom.
+        import yaml
+
+        import mujoco
+
+        from aegis.policies.smolvla import MAX_JOINT_VEL, resolved_rate_velocity
+
+        raw = yaml.safe_load(
+            (REPO / "configs" / "robots" / "franka.yaml").read_text(encoding="utf-8")
+        )
+        limit = raw["safety"]["max_velocity"]
+        env = MujocoPickPlaceEnv(
+            scene_mjcf=str(REPO / "assets" / "scenes" / "pick_place.xml"),
+            task=_base_cfg().task,
+            time_step=0.02,
+        )
+        try:
+            env.reset(seed=7)
+            hand_id = env.model.body("hand").id
+            max_cmd = 0.0
+            max_meas = 0.0
+            for _ in range(60):
+                obs = env.observe()
+                jacp = np.zeros((3, env.model.nv))
+                jacr = np.zeros((3, env.model.nv))
+                mujoco.mj_jacBody(env.model, env.data, jacp, jacr, hand_id)
+                J = np.vstack([jacp, jacr])[:, env.arm_qvel_ids].reshape(6, 7)
+                delta = obs["object_pos"] - obs["hand_pos"]
+                delta = 0.05 * delta / (np.linalg.norm(delta) + 1e-9)
+                vel = resolved_rate_velocity(
+                    J, np.concatenate([delta, np.zeros(3)]), env.dt
+                )
+                max_cmd = max(max_cmd, float(np.abs(vel).max()))
+                obs, terminated, truncated, info = env.step(
+                    np.concatenate([vel, [0.5]])
+                )
+                max_meas = max(
+                    max_meas,
+                    float(np.abs(env.state_snapshot()["arm_qvel"]).max()),
+                )
+        finally:
+            env.close()
+        assert max_cmd <= MAX_JOINT_VEL + 1e-9
+        assert max_cmd <= limit / 2 + 1e-9, "adapter clamp must sit at <=limit/2"
+        assert max_meas <= limit, (
+            f"measured velocity {max_meas:.3f} rad/s must stay under the "
+            f"default limit {limit}"
+        )
+
 
 class TestSmolVLAConfig:
     def test_smolvla_model_config_loads(self, tmp_path) -> None:
