@@ -161,7 +161,9 @@ class TestAdapterMath:
             (REPO / "configs" / "robots" / "franka.yaml").read_text(encoding="utf-8")
         )
         limit = raw["safety"]["max_velocity"]
-        assert limit >= 2 * MAX_JOINT_VEL, (
+        # per-joint list or uniform float both valid — headroom must hold for every joint
+        min_limit = min(limit) if isinstance(limit, list) else limit
+        assert min_limit >= 2 * MAX_JOINT_VEL, (
             f"default max_velocity {limit} must keep >=2x headroom over the "
             f"adapter clamp {MAX_JOINT_VEL}"
         )
@@ -181,6 +183,8 @@ class TestAdapterMath:
             (REPO / "configs" / "robots" / "franka.yaml").read_text(encoding="utf-8")
         )
         limit = raw["safety"]["max_velocity"]
+        min_limit = min(limit) if isinstance(limit, list) else limit
+        max_limit = max(limit) if isinstance(limit, list) else limit
         env = MujocoPickPlaceEnv(
             scene_mjcf=str(REPO / "assets" / "scenes" / "pick_place.xml"),
             task=_base_cfg().task,
@@ -213,10 +217,10 @@ class TestAdapterMath:
         finally:
             env.close()
         assert max_cmd <= MAX_JOINT_VEL + 1e-9
-        assert max_cmd <= limit / 2 + 1e-9, "adapter clamp must sit at <=limit/2"
-        assert max_meas <= limit, (
+        assert max_cmd <= min_limit / 2 + 1e-9, "adapter clamp must sit at <=limit/2"
+        assert max_meas <= max_limit, (
             f"measured velocity {max_meas:.3f} rad/s must stay under the "
-            f"default limit {limit}"
+            f"default limit {max_limit}"
         )
 
 

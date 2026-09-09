@@ -30,10 +30,14 @@ def build_report(
 ) -> dict[str, Any]:
     m = summarize(results)
     task_name = cfg.task.name
-    warnings = [
-        "safety limits are uniform per-joint; real robots need per-joint limits",
-        "recommendation line is rule-based (4 rules), not learned",
-    ]
+    # Per-joint limits remove the uniform warning (Phase 3 milestone 3.3)
+    is_uniform = isinstance(cfg.robot.safety.max_velocity, (int, float)) or isinstance(
+        cfg.robot.safety.max_force, (int, float)
+    )
+    warnings = []
+    if is_uniform:
+        warnings.append("safety limits are uniform per-joint; real robots need per-joint limits")
+    warnings.append("recommendation line is rule-based (4 rules), not learned")
     if m["episodes"] == 0:
         warnings.append("no episodes completed — check logs for errors")
     report = {

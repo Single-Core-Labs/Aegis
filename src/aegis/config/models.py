@@ -68,13 +68,38 @@ class ModelSpec(BaseModel):
 class SafetyLimits(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    max_velocity: float = Field(default=1.0, gt=0)
-    max_force: float = Field(default=40.0, gt=0)
+    # Per-joint limits: either a single uniform float (backward-compat, e.g. 1.0)
+    # or a 7-element list matching ARM_JOINTS order [j1..j7]. Real Franka limits
+    # are per-joint (2.175/2.61 rad/s, 87/12 Nm). Uniform mode emits a warning
+    # in the report; per-joint mode is the Phase 3 target.
+    max_velocity: float | list[float] = Field(default=1.0)
+    max_force: float | list[float] = Field(default=40.0)
     max_effort_action: float = Field(default=1.0, gt=0, allow_inf=True)
     reject_nan_actions: bool = True
     action_clamp: Literal["clamp", "reject"] = "reject"
     recovery_steps: int = Field(default=50, ge=1)
     recovery_mode: Literal["resume", "hold"] = "resume"
+
+    @model_validator(mode="after")
+    def _check_limits(self) -> "SafetyLimits":
+        for name in ("max_velocity", "max_force"):
+            v = getattr(self, name)
+            if isinstance(v, list):
+                if len(v) != 7:
+                    raise ValueError(f"{name} per-joint list must have 7 elements (got {len(v)})")
+                for i, x in enumerate(v):
+                    if not isinstance(x, (int, float)) or not float(x) > 0 or not float(x) != float("inf"):
+                        raise ValueError(f"{name}[{i}] must be finite >0 (got {x!r})")
+            else:
+                if not isinstance(v, (int, float)) or not float(v) > 0 or not float(v) != float("inf"):
+                    raise ValueError(f"{name} must be finite >0 (got {v!r})")
+        return self
+
+    def is_uniform_velocity(self) -> bool:
+        return isinstance(self.max_velocity, (int, float))
+
+    def is_uniform_force(self) -> bool:
+        return isinstance(self.max_force, (int, float))
 
 
 class RobotSpec(BaseModel):
@@ -88,7 +113,7 @@ class RobotSpec(BaseModel):
 class EnvSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    sim: Literal["mujoco"] = "mujoco"
+    sim: Literal["mujoco", "isaaclab", "isaac"] = "mujoco"
     scene_mjcf: str = Field(min_length=1)
     robot_name: str = Field(min_length=1)
     control_mode: Literal["joint_velocity"] = "joint_velocity"

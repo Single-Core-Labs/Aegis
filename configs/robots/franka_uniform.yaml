@@ -1,0 +1,13 @@
+name: franka_uniform
+# Legacy uniform limits — kept for A/B comparisons and tests.
+# Operation should use franka.yaml (per-joint) instead.
+mjcf_path: ../../assets/menagerie/franka_emika_panda/panda_vel.xml
+
+safety:
+  max_velocity: 1.0      # rad/s per joint (uniform)
+  max_force: 20.0        # Nm per joint (uniform)
+  max_effort_action: 1.0
+  reject_nan_actions: true
+  action_clamp: reject
+  recovery_steps: 50
+  recovery_mode: resume

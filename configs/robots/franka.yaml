@@ -1,15 +1,15 @@
 name: franka
-# MuJoCo Menagerie Franka Emika Panda, joint-velocity actuated variant.
+# Franka Emika Panda — per-joint limits (Phase 3 milestone 3.3).
+# Values reflect hardware specs with headroom: velocity 2.175 rad/s (j1-4),
+# 2.61 rad/s (j5-7); force 87 Nm (j1-4), 12 Nm (j5-7) — all >2x the SmolVLA
+# adapter clamp 0.5 rad/s (src/aegis/policies/smolvla.py) so transient
+# overshoot does not chronically trip the gateway.
+# See also franka_uniform.yaml for the legacy uniform fallback.
 mjcf_path: ../../assets/menagerie/franka_emika_panda/panda_vel.xml
 
 safety:
-  # POC simplification: uniform per-joint limits (real robots need per-joint).
-  # max_velocity must keep >=2x headroom over the SmolVLA adapter's velocity
-  # clamp (0.5 rad/s, src/aegis/policies/smolvla.py) so normal adapter output
-  # plus controller transient overshoot does not chronically trip the
-  # gateway. Regression-tested in tests/test_policy_model.py.
-  max_velocity: 1.0      # rad/s per joint
-  max_force: 20.0        # Nm per joint (measured actuator torque)
+  max_velocity: [2.175, 2.175, 2.175, 2.175, 2.61, 2.61, 2.61]  # rad/s per joint j1..j7
+  max_force: [87.0, 87.0, 87.0, 87.0, 12.0, 12.0, 12.0]        # Nm per joint j1..j7 (measured actuator torque above gravity)
   max_effort_action: 1.0 # gripper command bound (normalized units)
   reject_nan_actions: true
   action_clamp: reject   # strict by default: reject, do not clamp

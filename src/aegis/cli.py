@@ -134,9 +134,12 @@ def eval(
         else:  # pragma: no cover - guarded by pydantic Literal
             raise ConfigError(f"unknown model kind {cfg.model.kind!r}")
 
+        _limit = cfg.robot.safety.max_velocity
+        if isinstance(_limit, list):
+            _limit = min(_limit)
         fallback = PidToHomeFallback(
             home_qpos=env.home_qpos,
-            max_velocity=min(0.3, cfg.robot.safety.max_velocity),
+            max_velocity=min(0.3, _limit),
         )
         gateway = SafetyGateway(
             limits=cfg.robot.safety,

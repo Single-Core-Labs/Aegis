@@ -35,6 +35,16 @@ def check_finite(action, reject_nan: bool) -> Violation | None:
 def check_velocities(qvel, joint_names, max_velocity) -> Violation | None:
     import numpy as np
 
+    if isinstance(max_velocity, (list, tuple, np.ndarray)):
+        limits = list(max_velocity)
+        if len(limits) != len(joint_names):
+            raise ValueError(f"max_velocity per-joint list length {len(limits)} != joints {len(joint_names)}")
+        for name, v, lim in zip(joint_names, np.asarray(qvel).ravel(), limits):
+            if float(lim) <= 0:
+                continue
+            if abs(float(v)) > float(lim):
+                return Violation("velocity", name, float(v), float(lim))
+        return None
     if max_velocity <= 0:
         return None
     for name, v in zip(joint_names, np.asarray(qvel).ravel()):
@@ -46,6 +56,16 @@ def check_velocities(qvel, joint_names, max_velocity) -> Violation | None:
 def check_forces(torque, joint_names, max_force) -> Violation | None:
     import numpy as np
 
+    if isinstance(max_force, (list, tuple, np.ndarray)):
+        limits = list(max_force)
+        if len(limits) != len(joint_names):
+            raise ValueError(f"max_force per-joint list length {len(limits)} != joints {len(joint_names)}")
+        for name, f, lim in zip(joint_names, np.asarray(torque).ravel(), limits):
+            if float(lim) <= 0:
+                continue
+            if abs(float(f)) > float(lim):
+                return Violation("force", name, float(f), float(lim))
+        return None
     if max_force <= 0:
         return None
     for name, f in zip(joint_names, np.asarray(torque).ravel()):
