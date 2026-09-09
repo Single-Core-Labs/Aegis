@@ -302,6 +302,21 @@ python -m pytest tests/test_seed_sweep.py -q    # scripted robustness: 5 seeds �
 
 ---
 
+## Industries
+
+Harness is **industry-agnostic** — any domain that puts a learned policy on a physical robot. Value is highest where failure cost is high.
+
+| Tier | Industries | Why Aegis | Example Task |
+|---|---|---|---|
+| **P0 — Healthcare** | Hospitals, labs, elder-care, pharma, surgical assist, rehab | Human proximity, sterile contact, 0-tolerance for force/velocity violation; audit trail `report.json` for compliance | Lab vial/tray pick-place, assistive feeding, instrument handover — `contact-force >0.5N` + `lift` proves gentle grasp |
+| **P0 — Manufacturing** | Automotive, electronics/PCB, precision assembly | High-cost gear damage; needs per-joint `[2.175..2.61] rad/s, [87..12] Nm` enforcement + deterministic re-run | PCB component place, bin picking |
+| **P1 — Logistics / Warehousing** | E-commerce, 3PL, fulfillment | High throughput, sim-to-real camera/lighting gap kills success | Parcel pick-place to tote |
+| **P1 — Food / Agriculture** | Food processing, harvesting | Deformable objects, hygiene, variable lighting — needs domain randomization | Produce handling |
+| **P2 — Retail / Hospitality** | Stores, kitchens, hotels | Human-collaborative, front-of-house | Shelf restocking |
+| **P2 — Construction / Field** | Inspection, material handling | Harsh env, fallback-to-home critical | Block placement |
+
+> **Positioning:** Healthcare is the strongest NVIDIA Physical AI narrative (safety + auditability), but the same `Policy → Gateway → MuJoCo/Isaac/Real` (`PRD.md:5`) serves all above — only `configs/robots/` + `configs/tasks/` + `cameras` change. For healthcare, **start with lab automation** (lowest regulatory barrier) before surgical.
+
 ## Project Status & Roadmap
 
 | Phase | Scope | Status |
@@ -337,8 +352,8 @@ See [docs/nvidia-stack-manual.md](docs/nvidia-stack-manual.md) for the NVIDIA st
 1. **Velocity control is torque control.** The 8-D action (`7× joint vel + gripper`, rad/s) is integrated to a position target and tracked by `tau = qfrc_bias + 40·err + 5·vel_err` — gravity-compensated PD, not a perfect velocity servo.
 2. **Per-joint limits are now default** (`franka.yaml`); legacy uniform `1.0 rad/s` kept as `franka_uniform.yaml` for A/B. Reports include `warnings` when uniform is active.
 3. **Recommendation is rule-based** (4 hand-written rules), not learned.
-4. **GPU hours** is `0.0` on `cpu` (stub) and wall-clock proxy `duration/3600` on `cuda`.
-5. **Success is position-only** — object within `0.05 m` of target + lifted `6 cm` (z-height threshold, no contact-force detector).
+4. **GPU hours** is `0.0` on `cpu` and per-kernel sum of inference time (`total_inference_s/3600`, CUDA events when available) on `cuda`.
+5. **Success is `grasped_ever && dist≤0.05m`** — grasp = `lifted (z>table+0.025)` **AND** finger-object contacts with `mj_contactForce>0.5N` (sticky, logged as `grasp_has_contacts/force`).
 6. **Determinism** via `seed + episode_id` and deterministic policies (`tests/test_eval.py`).
 7. **Gripper** is a tendon motor `0..255` (open→close) remapped from the Menagerie model.
 
