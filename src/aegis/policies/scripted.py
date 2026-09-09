@@ -37,7 +37,16 @@ class ScriptedPolicy(Policy):
     name = "scripted"
 
     def __init__(self, spec: ScriptedPolicySpec, env: Env) -> None:
-        assert isinstance(env, MujocoPickPlaceEnv), "scripted policy needs the MuJoCo env"
+        # Accept IsaacPickPlaceEnv in fallback mode (it delegates to MuJoCo)
+        # so `aegis eval --sim isaaclab` works without Isaac Sim runtime.
+        try:
+            from aegis.envs.isaac_pick_place import IsaacPickPlaceEnv
+
+            if isinstance(env, IsaacPickPlaceEnv) and env.is_fallback:
+                env = env._delegate  # type: ignore
+        except Exception:
+            pass
+        assert isinstance(env, MujocoPickPlaceEnv), "scripted policy needs the MuJoCo env (or Isaac fallback)"
         self._spec = spec
         self._env = env
         self._vel_limit = spec.velocity_limit

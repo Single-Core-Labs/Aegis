@@ -20,6 +20,7 @@ from aegis.eval.runner import EvalRunner
 from aegis.policies.random import RandomPolicy
 from aegis.policies.scripted import ScriptedPolicy
 from aegis.policies.smolvla import SmolVLAPolicy
+from aegis.ros2.bridge import RosBridge, benchmark_latency
 from aegis.safety.fallback import PidToHomeFallback
 from aegis.safety.gateway import SafetyGateway
 from aegis.telemetry.logger import RunLogger
@@ -68,8 +69,10 @@ def eval(
     """Run a safety-gated evaluation for N episodes and emit a report."""
     try:
         cfg = load_run_config(config, model_name=model, robot_name=robot, task_name=tasks)
-        if sim != "mujoco":
-            raise ConfigError(f"--sim {sim!r} not supported in POC; use 'mujoco'")
+        if sim not in ("mujoco", "isaaclab", "isaac"):
+            raise ConfigError(f"--sim {sim!r} not supported; use 'mujoco' or 'isaaclab'")
+        if sim in ("isaaclab", "isaac") and cfg.environment.sim != sim:
+            cfg = cfg.model_copy(update={"environment": cfg.environment.model_copy(update={"sim": sim})})
         if tasks != "pick-place":
             raise ConfigError(f"--tasks {tasks!r} not supported in POC; use 'pick-place'")
         overrides: dict = {}
@@ -102,12 +105,23 @@ def eval(
 
     env = None
     try:
-        env = MujocoPickPlaceEnv(
-            scene_mjcf=cfg.environment.scene_mjcf,
-            task=cfg.task,
-            time_step=cfg.eval.time_step,
-            render_cameras=cfg.environment.render_cameras,
-        )
+        # Simulation backend selection (Phase 3: isaaclab scaffold)
+        if cfg.environment.sim in ("isaaclab", "isaac"):
+            from aegis.envs.isaac_pick_place import IsaacPickPlaceEnv
+
+            env = IsaacPickPlaceEnv(
+                scene_mjcf=cfg.environment.scene_mjcf,
+                task=cfg.task,
+                time_step=cfg.eval.time_step,
+                render_cameras=cfg.environment.render_cameras,
+            )
+        else:
+            env = MujocoPickPlaceEnv(
+                scene_mjcf=cfg.environment.scene_mjcf,
+                task=cfg.task,
+                time_step=cfg.eval.time_step,
+                render_cameras=cfg.environment.render_cameras,
+            )
         env.reset(cfg.eval.seed)
 
         if cfg.model.kind == "random":
@@ -163,6 +177,24 @@ def eval(
     logger.close()
     typer.echo(print_summary(report))
     typer.echo(f"report      : {logger.run_dir / 'report.json'}")
+    raise typer.Exit(EXIT_OK)
+
+
+@app.command()
+def rosbench(
+    n: int = typer.Option(100, "--n", help="number of publish samples"),
+    mock: bool = typer.Option(True, "--mock/--real", help="use mock in-memory transport (real needs rclpy)"),
+) -> None:
+    """Benchmark ROS2 bridge publish latency (mock vs real rclpy)."""
+    bridge = RosBridge(mock=mock)
+    stats = benchmark_latency(bridge, n=n)
+    typer.echo(f"ros bridge: {'mock' if bridge._mock else 'real rclpy'}")
+    typer.echo(f"  count : {stats.count}")
+    typer.echo(f"  p50   : {stats.p50_ms:.3f} ms")
+    typer.echo(f"  p95   : {stats.p95_ms:.3f} ms")
+    typer.echo(f"  mean  : {stats.mean_ms:.3f} ms  min {stats.min_ms:.3f} max {stats.max_ms:.3f}")
+    typer.echo("note: inside-WSL2 vs Windows<->WSL2 bridge latency must be measured separately in WSL2")
+    bridge.close()
     raise typer.Exit(EXIT_OK)
 
 

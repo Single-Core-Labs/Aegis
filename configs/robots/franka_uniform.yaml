@@ -1,5 +1,7 @@
-name: franka_uniform
-# Legacy uniform limits — kept for A/B comparisons and tests.
+name: franka
+# Legacy uniform limits — kept for A/B comparisons and tests (file is
+# franka_uniform.yaml but robot name stays "franka" so it validates
+# against physical-ai.yaml environment.robot_name).
 # Operation should use franka.yaml (per-joint) instead.
 mjcf_path: ../../assets/menagerie/franka_emika_panda/panda_vel.xml
 
