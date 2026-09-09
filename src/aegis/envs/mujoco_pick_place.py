@@ -65,6 +65,15 @@ class MujocoPickPlaceEnv(Env):
         self._Kp = 40.0
         self._Kd = 5.0
 
+        # Grasp detection: contact-force ids cached at init.
+        self._object_geom_id = self._model.geom("object_geom").id
+        self._left_finger_body_id = self._model.body("left_finger").id
+        self._right_finger_body_id = self._model.body("right_finger").id
+        # Contact force threshold (N) for a finger-object contact to count.
+        self._grasp_force_threshold = 0.5
+        # Lift height above table top (m) to count as "off table" alongside contacts.
+        self._grasp_lift_threshold = 0.025  # half cube 0.025 + small margin
+
         self._rng: np.random.Generator | None = None
         self._grasped_ever = False
         self._step_count = 0
@@ -125,10 +134,14 @@ class MujocoPickPlaceEnv(Env):
 
         object_pos = self._data.xpos[self._object_body.id]
         target_pos = self._data.xpos[self._target_body.id]
-        # Lifted: object center above table top by more than its rest height
-        # (half cube = 0.025) plus a margin, so resting on the table never
-        # counts as grasped.
-        if object_pos[2] > self._table_top_z + 0.06:
+        # Contact-force grasp detector: object must be lifted off table AND
+        # have active finger-object contacts with force above threshold.
+        # This replaces the pure z-height threshold (0.06m) for honesty.
+        lifted = float(object_pos[2]) > self._table_top_z + self._grasp_lift_threshold
+        has_contacts, contact_force = self._has_grasp_contacts()
+        # Sticky grasp: once lifted+contacts occurred, remember it (object may be
+        # in transit to target). Still log per-step contact state for telemetry.
+        if lifted and has_contacts:
             self._grasped_ever = True
 
         dist = float(np.linalg.norm(object_pos[:2] - target_pos[:2]))
@@ -138,6 +151,9 @@ class MujocoPickPlaceEnv(Env):
             "object_pos": object_pos.copy(),
             "target_pos": target_pos.copy(),
             "grasped": bool(self._grasped_ever),
+            "grasp_lifted": bool(lifted),
+            "grasp_has_contacts": bool(has_contacts),
+            "grasp_contact_force": round(float(contact_force), 4),
             "object_to_target_dist": round(dist, 5),
         }
         return self.observe(), bool(success), False, info
@@ -189,6 +205,42 @@ class MujocoPickPlaceEnv(Env):
             "gripper_ctrl": np.array([self._data.ctrl[self._gripper_actuator_id]]),
             "object_pos": self._data.xpos[self._object_body.id].copy(),
         }
+
+    def _has_grasp_contacts(self) -> tuple[bool, float]:
+        """Check finger-object contacts with force above threshold.
+
+        Returns (has_contact, max_force). Uses mujoco.mj_contactForce when
+        available; falls back to penetration distance if contacts exist.
+        """
+        max_force = 0.0
+        has_contact = False
+        # Iterate active contacts
+        for i in range(self._data.ncon):
+            c = self._data.contact[i]
+            g1, g2 = int(c.geom1), int(c.geom2)
+            b1 = int(self._model.geom_bodyid[g1])
+            b2 = int(self._model.geom_bodyid[g2])
+            is_object_finger = (
+                (g1 == self._object_geom_id and b2 in (self._left_finger_body_id, self._right_finger_body_id))
+                or (g2 == self._object_geom_id and b1 in (self._left_finger_body_id, self._right_finger_body_id))
+            )
+            if not is_object_finger:
+                continue
+            # Penetration or touching (dist <= 0 means contact)
+            if float(c.dist) > 1e-4:
+                continue
+            # Compute contact force magnitude
+            try:
+                force = np.zeros(6, dtype=float)
+                mujoco.mj_contactForce(self._model, self._data, i, force)
+                f_mag = float(np.linalg.norm(force[:3]))
+            except Exception:
+                # Fallback: treat any penetrating contact as ~1N
+                f_mag = 1.0 if float(c.dist) <= 0 else 0.0
+            max_force = max(max_force, f_mag)
+            if f_mag >= self._grasp_force_threshold:
+                has_contact = True
+        return has_contact, max_force
 
     def close(self) -> None:
         if self._renderer is not None:

@@ -56,7 +56,7 @@ def build_report(
         "recovery_events": m["recovery_events"],
         "gpu_hours": _gpu_hours(cfg, m),
         "gpu_hours_note": (
-            "wall-clock proxy for cuda runs (no per-kernel accounting)"
+            "per-kernel sum of CUDA inference time (cuda events when available; falls back to perf_counter)"
             if cfg.eval.inference_mode == "cuda"
             else "stub — no GPU used in this run"
         ),
@@ -71,7 +71,10 @@ def build_report(
 def _gpu_hours(cfg: PhysicalAIYaml, m: dict) -> float:
     if cfg.eval.inference_mode != "cuda":
         return 0.0
-    return round(m["total_duration_s"] / 3600.0, 6)
+    # Per-kernel accounting: sum of inference latencies, not wall-clock.
+    # Falls back to total_duration if total_inference_s is missing (old logs).
+    total_inference_s = m.get("total_inference_s", m.get("total_duration_s", 0.0))
+    return round(float(total_inference_s) / 3600.0, 6)
 
 
 def print_summary(report: dict[str, Any]) -> str:

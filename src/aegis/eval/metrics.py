@@ -23,6 +23,7 @@ def summarize(results: list[EpisodeResult]) -> dict:
     model_errors = sum(r.model_errors for r in results)
     total_steps = sum(r.steps for r in results)
     total_duration_s = sum(r.duration_s for r in results)
+    total_inference_s = round(float(sum(latencies)), 6)
 
     return {
         "episodes": len(results),
@@ -32,6 +33,7 @@ def summarize(results: list[EpisodeResult]) -> dict:
         "truncated": truncated,
         "total_steps": total_steps,
         "total_duration_s": round(total_duration_s, 3),
+        "total_inference_s": total_inference_s,
         "inference_latency_p50_ms": round(percentile(latencies, 50) * 1e3, 3),
         "inference_latency_p95_ms": round(percentile(latencies, 95) * 1e3, 3),
         "safety_violations": violations,

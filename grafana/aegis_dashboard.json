@@ -1,0 +1,78 @@
+{
+  "title": "Aegis \u2014 Physical AI Harness",
+  "tags": [
+    "aegis",
+    "physical-ai",
+    "isaac",
+    "ros2"
+  ],
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "Success Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "aegis_episodes_success"
+        }
+      ]
+    },
+    {
+      "title": "Safety Violations",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "aegis_safety_violations"
+        }
+      ]
+    },
+    {
+      "title": "Recovery Events",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "aegis_recovery_events"
+        }
+      ]
+    },
+    {
+      "title": "Inference Latency p50/p95 (ms)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "aegis_latency_p50_ms"
+        },
+        {
+          "expr": "aegis_latency_p95_ms"
+        }
+      ]
+    },
+    {
+      "title": "GPU Hours (per-kernel)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "aegis_gpu_hours"
+        }
+      ]
+    },
+    {
+      "title": "Step Violations by Type",
+      "type": "barchart",
+      "targets": [
+        {
+          "expr": "aegis_step_violation"
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "run_id",
+        "type": "query",
+        "query": "label_values(aegis_episodes_success, run_id)"
+      }
+    ]
+  }
+}

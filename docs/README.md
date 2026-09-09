@@ -11,6 +11,11 @@ Welcome to the Aegis Physical AI Harness documentation.
 | [Safety Gateway](safety-gateway.md) | Safety / controls engineers | Per-joint limits, fallback tuning, adding a new robot |
 | [Isaac Lab Guide](isaac-lab.md) | Sim engineers | USD authoring, PhysX setup, sim-to-real gap measurement |
 | [ROS 2 Bridge](ros2-bridge.md) | Systems / deployment engineers | Topics, latency benchmarking, real-robot wiring |
+| [Dashboard](dashboard.md) | Observability engineers | NDJSON → Prometheus / Grafana / OTel (`src/aegis/telemetry/otel.py`) |
+| [Perf Tuning](perf-tuning.md) | Sim / deployment engineers | Isaac USD VRAM-safe for RTX 4050 6GB |
+| [Batching](batching.md) | Platform engineers | Multi-robot/task spec (P3) |
+| [Learned Reco](learned-recommendation.md) | ML engineers | Heuristic → learned recommendation spec (P3) |
+| [Camera Calib](camera-calibration.md) | Perception engineers | Per-model calibration + domain randomization (P3) |
 
 ## Reference
 

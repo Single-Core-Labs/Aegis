@@ -103,17 +103,43 @@ class EvalRunner:
             obs = env.observe()
             state = env.state_snapshot()
 
-            t0 = time.perf_counter_ns()
+            # Per-kernel GPU timing: use CUDA events when cuda mode + gpu available,
+            # otherwise fall back to perf_counter (cpu). Events give kernel-only time.
+            use_cuda_event = False
+            start_evt = end_evt = None
+            if cfg.inference_mode == "cuda":
+                try:
+                    import torch  # type: ignore
+
+                    if torch.cuda.is_available():
+                        start_evt = torch.cuda.Event(enable_timing=True)
+                        end_evt = torch.cuda.Event(enable_timing=True)
+                        start_evt.record()
+                        use_cuda_event = True
+                except Exception:
+                    use_cuda_event = False
+            if not use_cuda_event:
+                t0 = time.perf_counter_ns()
             try:
                 raw = self._policy.act(obs)
             except PolicyModelError as exc:
                 # Model crashed: count like a safety violation, engage fallback.
-                inference_s = (time.perf_counter_ns() - t0) / 1e9
+                if use_cuda_event:
+                    end_evt.record()  # type: ignore
+                    torch.cuda.synchronize()  # type: ignore
+                    inference_s = start_evt.elapsed_time(end_evt) / 1e3  # type: ignore
+                else:
+                    inference_s = (time.perf_counter_ns() - t0) / 1e9
                 latencies.append(inference_s)
                 gated = gateway.model_error(state, str(exc))
                 gateway_s = 0.0
             else:
-                inference_s = (time.perf_counter_ns() - t0) / 1e9
+                if use_cuda_event:
+                    end_evt.record()  # type: ignore
+                    torch.cuda.synchronize()  # type: ignore
+                    inference_s = start_evt.elapsed_time(end_evt) / 1e3  # type: ignore
+                else:
+                    inference_s = (time.perf_counter_ns() - t0) / 1e9
                 latencies.append(inference_s)
                 t_gate = time.perf_counter_ns()
                 budget_ms = float(cfg.inference_budget_ms)
