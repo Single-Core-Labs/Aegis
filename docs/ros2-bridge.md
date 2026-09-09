@@ -60,7 +60,7 @@ obs = bridge.get_state()  # {"arm_qpos": ..., "arm_qvel": ...}
 bridge.publish_safety({"type": "velocity", "joint": "joint_3", "value": 2.8, "limit": 2.61})
 ```
 
-See `HARDWARE_CHECKLIST.md` Gates 1–3 for the full bring-up sequence (e-stop, dry run, Go/No-Go).
+See `docs/nvidia-stack-manual.md` Section 8 for the full bring-up sequence (e-stop, dry run, Go/No-Go).
 
 ## API Reference
 

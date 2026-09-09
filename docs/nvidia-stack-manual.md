@@ -181,7 +181,7 @@ uv run aegis eval --sim isaaclab --model scripted --episodes 3 --seed 42
 
 ### 5.3 Camera placement — critical for VLA transfer
 
-SmolVLA was trained on LIBERO camera distributions. To close the vision domain gap observed in `PHASE_2_SUMMARY.md` (hand `0.6m` from cube in MuJoCo):
+SmolVLA was trained on LIBERO camera distributions. To close the vision domain gap observed in MuJoCo (hand `0.6m` from cube):
 
 | Camera | Purpose | Placement Guidance |
 |---|---|---|
@@ -254,7 +254,7 @@ source /opt/ros/humble/setup.bash
 ros2 topic list
 ```
 
-> **This project's current status:** `apt` GPG hit a `404` — mock bridge verified (`aegis rosbench --mock` passes), real `rclpy` pending WSL2 install. Manual `curl -k` fix is documented in `WSL2_SETUP_STATUS.md`.
+> **This project's current status:** `apt` GPG hit a `404` — mock bridge verified (`aegis rosbench --mock` passes), real `rclpy` pending WSL2 install. Manual `curl -k` fix is documented in Section 6.2 above.
 
 ### 6.3 Benchmarking latency
 
@@ -312,7 +312,7 @@ eval:
   inference_budget_ms: 2000.0  # per-step budget; over-budget → fallback (like a safety violation)
 ```
 
-Cold start (~`5s` on first chunk) intentionally trips the budget on step 1 — this proves fallback works (`PHASE_2_SUMMARY.md:69`). Subsequent chunks are fast.
+Cold start (~`5s` on first chunk) intentionally trips the budget on step 1 — this proves fallback works. Subsequent chunks are fast.
 
 ### 7.4 Known zero-shot result (honest)
 
@@ -326,7 +326,7 @@ Cold start (~`5s` on first chunk) intentionally trips the budget on step 1 — t
 
 ## 8. Hardware Bring-Up — Real Franka
 
-> **No hardware is touched until all gates pass.** See `HARDWARE_CHECKLIST.md` for the full checklist.
+> **No hardware is touched until all gates pass.** See Section 8.1 for the full checklist.
 
 ### 8.1 Gate summary
 
@@ -423,7 +423,7 @@ uv run aegis validate --robot my_robot
 | `config error: mjcf_path not found` | Asset path wrong | `aegis validate --robot franka` — check `assets/menagerie/` exists |
 | `violations 33/ep` on SmolVLA | Uniform `0.6 rad/s` too tight | Use default `franka.yaml` per-joint `[2.175..2.61]` — `4×` headroom |
 | `ros2: command not found` | ROS 2 not installed | See [Section 6.2](#62-installing-ros-2-humble-wsl2-ubuntu-2204) — apt or Docker |
-| `apt GPG 404` on `packages.ros.org` | Transient keyserver issue | `curl -k` fix in `WSL2_SETUP_STATUS.md` or use `osrf/ros:humble-desktop` Docker |
+| `apt GPG 404` on `packages.ros.org` | Transient keyserver issue | `curl -k` fix in Section 6.2 or use `osrf/ros:humble-desktop` Docker |
 | `SmolVLA 0/3 success` | Vision domain gap (MuJoCo ≠ LIBERO) | Re-evaluate in Isaac Lab with LIBERO-matched cameras — Section 5.3 |
 | `uv run pytest` hangs on `cmake` | `uv` downloading build deps | Use `python -m pytest -q` directly (20 tests, ~40s) |
 
@@ -503,6 +503,6 @@ physical-ai-harness/
 
 **Aegis** — *Every action that reaches hardware must be safe, measured, and honest.*
 
-Questions? See [CONTEXT.md](../CONTEXT.md) for partnership asks or open an issue.
+Questions? Open an issue or see [docs/README.md](README.md).
 
 </div>

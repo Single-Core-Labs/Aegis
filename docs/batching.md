@@ -1,6 +1,6 @@
 # Multi-Robot / Multi-Task Batching — Spec (P3)
 
-**Status:** Spec only — not implemented until Phase 3 real is green (`DESIGN.md:262` scope discipline).
+**Status:** Spec only — not implemented until Phase 3 real is green (scope discipline).
 
 ## Goal
 

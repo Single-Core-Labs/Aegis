@@ -1,6 +1,6 @@
 # Per-Model Camera Calibration + Domain Randomization — Spec (P3)
 
-**Problem:** SmolVLA `0/3` on MuJoCo fixed cameras (`PHASE_2_SUMMARY.md:161` — 0.16m→0.60m, mid-air grips) is a vision domain gap vs LIBERO training distribution. Isaac Lab with photoreal cameras is the first fix; this spec is the systematic follow-on.
+**Problem:** SmolVLA `0/3` on MuJoCo fixed cameras (0.16m→0.60m, mid-air grips) is a vision domain gap vs LIBERO training distribution. Isaac Lab with photoreal cameras is the first fix; this spec is the systematic follow-on.
 
 ## P3a: Per-Model Camera Calibration
 
@@ -39,4 +39,4 @@ Disabled by default; enabled via `task.domain_randomization: true` in `configs/t
 
 ## Not Building Now
 
-Requires real Isaac USD cameras first (`WHAT_NEXT.md:P1`). Spec kept here for roadmap.
+Requires real Isaac USD cameras first. Spec kept here for roadmap.

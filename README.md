@@ -282,7 +282,7 @@ Reproducible on `seed 42` / `seed 7` (deterministic, `seed + episode_id`):
 | MuJoCo | `scripted` | 3 | **3/3** | 0 | 0 | Smoke-test baseline, per-joint limits |
 | MuJoCo | `random` | 3 | 0/3 | 4 | 2 | Negative control — fallback engaged (was 145 with legacy uniform `1.0 rad/s`) |
 | Isaac Lab (fallback) | `scripted` | 3 | **3/3** | 0 | 0 | `RuntimeWarning` + `info["sim"]="isaaclab-fallback-mujoco"` — honest |
-| MuJoCo | `smolvla_libero` (cuda) | 3 | 0/3 | 33/ep | 33/ep | 1 budget + 32 velocity on `0.6 rad/s` uniform; `0/3` even at `5.0 rad/s` — vision domain gap (see `PHASE_2_SUMMARY.md`) |
+| MuJoCo | `smolvla_libero` (cuda) | 3 | 0/3 | 33/ep | 33/ep | 1 budget + 32 velocity on `0.6 rad/s` uniform; `0/3` even at `5.0 rad/s` — vision domain gap |
 
 > SmolVLA zero-shot mis-localizes in MuJoCo (hand `0.16m → 0.6m` from cube, gripper closes in mid-air). Re-evaluation in Isaac Lab with LIBERO-matched cameras/lighting is the remaining Phase 3 milestone.
 
@@ -311,7 +311,7 @@ python -m pytest tests/test_seed_sweep.py -q    # scripted robustness: 5 seeds �
 | **Phase 3 scaffold** | Per-joint limits, ROS 2 mock bridge, Isaac Lab fallback, hardware checklist | ✅ Complete |
 | **Phase 3 real runtime** | ROS 2 Humble (real `rclpy`), Isaac Sim USD + PhysX, hardware dry run | 🔲 Pending — requires WSL2 ROS 2 install + 16 GB VRAM or NVIDIA VRAM-safe guidance |
 
-See [CONTEXT.md](CONTEXT.md) for the full phase gate, and [docs/nvidia-stack-manual.md](docs/nvidia-stack-manual.md) for the NVIDIA stack integration path.
+See [docs/nvidia-stack-manual.md](docs/nvidia-stack-manual.md) for the NVIDIA stack integration path.
 
 **Beyond Phase 3:** Multi-robot batching · Learned recommendation · Prometheus/Grafana observability · RL training & dataset collection · Contact-force grasp detection · Domain randomization
 
@@ -327,9 +327,8 @@ See [CONTEXT.md](CONTEXT.md) for the full phase gate, and [docs/nvidia-stack-man
 | [docs/safety-gateway.md](docs/safety-gateway.md) | Safety limits, fallback tuning, adding a new robot |
 | [docs/isaac-lab.md](docs/isaac-lab.md) | Isaac Lab USD authoring and sim-to-real gap measurement |
 | [docs/ros2-bridge.md](docs/ros2-bridge.md) | ROS 2 topics, latency benchmarking, real-robot wiring |
-| [CONTEXT.md](CONTEXT.md) | Current stage, what’s done, what’s left, NVIDIA partnership asks |
-| [DESIGN.md](DESIGN.md) | Phase 1 design doc (schema, gateway, eval loop) |
-| [HARDWARE_CHECKLIST.md](HARDWARE_CHECKLIST.md) | Go/No-Go gates for real Franka exposure |
+| [docs/dashboard.md](docs/dashboard.md) | Observability: NDJSON → Prometheus / Grafana / OTel |
+| [docs/perf-tuning.md](docs/perf-tuning.md) | Isaac USD VRAM-safe tuning for 6 GB |
 
 ---
 
