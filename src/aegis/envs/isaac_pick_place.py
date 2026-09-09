@@ -49,12 +49,15 @@ class IsaacPickPlaceEnv(Env):
         render_cameras: list[str] | None = None,
         usd_scene: str | None = None,
         physics: str = "physx",
+        headless: bool = False,
     ) -> None:
         self._task = task or TaskSpec()
         self._time_step = time_step
         self._render_cameras = list(render_cameras or [])
-        self._usd_scene = usd_scene
+        # VRAM-safe defaults per docs/perf-tuning.md
+        self._usd_scene = usd_scene or "assets/usd/pick_place_vram_safe.usda"
         self._physics = physics
+        self._headless = headless
         self._using_fallback = not _HAS_ISAACSIM
 
         if self._using_fallback:

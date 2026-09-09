@@ -87,8 +87,27 @@ class SmolVLAPolicy(Policy):
         self._device = device
         self._instruction = spec.instruction
         self._cameras = list(spec.cameras)
+        self._quantize = getattr(spec, "quantize", "none")
 
-        self._policy = LeRobotPolicy.from_pretrained(endpoint)
+        # VRAM-safe int8: ~1GB -> ~0.6GB via bitsandbytes, frees ~0.4GB for Isaac on 6GB
+        # Falls back to bf16 with explicit note if bitsandbytes not installed.
+        load_kwargs: dict[str, Any] = {}
+        if self._quantize == "int8":
+            try:
+                import bitsandbytes  # noqa: F401
+
+                load_kwargs["load_in_8bit"] = True
+            except ImportError:
+                import warnings
+
+                warnings.warn(
+                    "SmolVLAPolicySpec quantize='int8' requires bitsandbytes; "
+                    "pip install bitsandbytes && pip install accelerate; falling back to bf16. "
+                    "See docs/perf-tuning.md",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+        self._policy = LeRobotPolicy.from_pretrained(endpoint, **load_kwargs)
         self._policy.to(device)
         self._pre = PolicyProcessorPipeline.from_pretrained(
             endpoint, config_filename="policy_preprocessor.json"

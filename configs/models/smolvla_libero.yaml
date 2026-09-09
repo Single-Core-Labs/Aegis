@@ -7,3 +7,5 @@ policy:
   kind: smolvla
   instruction: pick up the red cube and place it on the green target
   cameras: [camera1, camera2, camera3]
+  quantize: none  # int8 for 6GB VRAM-safe: ~1GB -> 0.6GB via bitsandbytes
+  headless: false

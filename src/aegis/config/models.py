@@ -40,6 +40,9 @@ class SmolVLAPolicySpec(BaseModel):
     cameras: list[str] = Field(
         default_factory=lambda: ["camera1", "camera2", "camera3"]
     )
+    # int8 quantization for VRAM-safe: ~1GB -> ~0.6GB, frees ~0.4GB for Isaac on 6GB
+    quantize: Literal["none", "int8"] = Field(default="none")
+    headless: bool = False  # Isaac headless: no window, offscreen 256x256 only
 
 
 ModelPolicySpec = RandomPolicySpec | ScriptedPolicySpec | SmolVLAPolicySpec
@@ -118,6 +121,8 @@ class EnvSpec(BaseModel):
     robot_name: str = Field(min_length=1)
     control_mode: Literal["joint_velocity"] = "joint_velocity"
     render_cameras: list[str] = Field(default_factory=list)
+    headless: bool = False  # Isaac headless: --headless, no window, RTX Real-Time bounces=1
+    usd_scene: str | None = Field(default=None)  # VRAM-safe USD e.g. assets/usd/pick_place_vram_safe.usda
 
 
 class TaskSpec(BaseModel):

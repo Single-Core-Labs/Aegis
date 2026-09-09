@@ -59,6 +59,8 @@ def eval(
     inference_budget_ms: float | None = typer.Option(
         None, "--inference-budget-ms", min=1.0, help="overrides eval.inference_budget_ms"
     ),
+    headless: bool = typer.Option(False, "--headless", help="Isaac headless: no window, RTX Real-Time bounces=1, 6GB VRAM-safe"),
+    quantize: str | None = typer.Option(None, "--quantize", help="SmolVLA quantize: none | int8 (bitsandbytes, ~1GB->0.6GB)"),
     config: Path = typer.Option(
         Path("physical-ai.yaml"), "--config", help="root config file"
     ),
@@ -92,6 +94,14 @@ def eval(
             overrides["inference_budget_ms"] = inference_budget_ms
         if overrides:
             cfg = cfg.model_copy(update={"eval": cfg.eval.model_copy(update=overrides)})
+        # VRAM-safe flags: --headless and --quantize override config
+        if headless:
+            cfg = cfg.model_copy(update={"environment": cfg.environment.model_copy(update={"headless": True})})
+        if quantize is not None:
+            if quantize not in ("none", "int8"):
+                raise ConfigError(f"--quantize {quantize!r} not supported; use 'none' or 'int8'")
+            if cfg.model.kind == "smolvla":
+                cfg = cfg.model_copy(update={"model": cfg.model.model_copy(update={"policy": cfg.model.policy.model_copy(update={"quantize": quantize})})})
         if output_dir is not None:
             cfg = cfg.model_copy(update={"output": cfg.output.model_copy(update={"dir": str(output_dir)})})
     except ConfigError as exc:
@@ -114,6 +124,8 @@ def eval(
                 task=cfg.task,
                 time_step=cfg.eval.time_step,
                 render_cameras=cfg.environment.render_cameras,
+                usd_scene=cfg.environment.usd_scene or "assets/usd/pick_place_vram_safe.usda",
+                headless=cfg.environment.headless,
             )
         else:
             env = MujocoPickPlaceEnv(
