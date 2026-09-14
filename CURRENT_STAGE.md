@@ -101,7 +101,26 @@ Policy —action→ [ AEGIS Safety Gateway + Eval Harness ] —safe action→ Ro
 
 Latency: scripted `p50 ~0.012 p95 ~0.034ms` cpu; SmolVLA `p50 1.29 p95 1.87ms` amortized, chunk `0.35-0.41s`, cold `5.09s` (trips 2000ms budget on step 1 — proven); ROS mock `p50 0.000 p95 0.002ms`.
 
-New slices (2026-09-14, verified live): `eval-batch` 2 combos (scripted+random, seed 7) → `success 1/fail 1`, combo seeds 7/1007, nested `task_counts` + `summary` ✓; `--dr` scripted 2 eps seed 42 → 1/2 with DR warning, byte-identical across repeats ✓.
+Full benchmark sweep (2026-09-14, `bench-*` + `batch-bench1`, system Python 3.13, cpu):
+
+| Run | Policy / sim | Result | Viol / rec | p50/p95 (ms) | Label |
+|---|---|---|---|---|---|
+| `bench-scripted` | scripted 3 eps seed 42 | **3/3** | 0 / 0 | 0.012 / 0.027 | ready |
+| `bench-random` | random 3 eps seed 7 | 0/3 | 4 / 2 | 0.008 / 0.020 | tighten_limits_or_fix_policy |
+| `bench-isaac` | scripted, `--sim isaaclab` (fallback + `RuntimeWarning`) | **3/3** | 0 / 0 | 0.012 / 0.039 | ready |
+| `bench-dr` | scripted `--dr` 3 eps seed 42 | **3/3** + DR warning | 0 / 0 | 0.012 / 0.038 | ready |
+| `batch-bench1` franka/scripted (seed 42) | per-joint limits | **3/3** | 0 / 0 | 0.012 / 0.026 | ready |
+| `batch-bench1` franka/random (seed 1042) | per-joint limits | 0/3 | 1 / 1 | 0.009 / 0.023 | tighten_limits_or_fix_policy |
+| `batch-bench1` franka_uniform/scripted (seed 2042) | uniform 1.0 rad/s | **3/3** | 0 / 0 | 0.012 / 0.032 | ready |
+| `batch-bench1` franka_uniform/random (seed 3042) | uniform 1.0 rad/s | 0/3 | **9 / 8** | 0.009 / 0.022 | tighten_limits_or_fix_policy |
+| batch summary | 4 combos, 12 eps | 6/6 | 10 / 9 | — | — |
+| `rosbench --mock -n 100` | in-memory bridge | — | — | p50 0.000 / p95 0.001 | — |
+| `pytest -q` | full suite | **28/28 pass** (44s) | — | — | — |
+
+Limit-regime A/B reads clean: legacy uniform limits catch random 9× vs per-joint 1×,
+scripted stays 0 violations under both — the "realistic envelope" claim reproduced.
+Not benchmarked (no weights on disk): SmolVLA cuda, GR00T (adapter implemented,
+first real-weights run pending user drop).
 
 Test + env status (2026-09-14): **20/20 pass** on system Python 3.13 (editable install pointing at `src/`). `--help` crash fixed by upgrading typer 0.15.4→0.27.1 (matches `uv.lock`); `pyproject.toml` floor pinned `typer>=0.16` so pip users can't land on the broken old-typer/new-click combo. Known pre-existing env drift (not touched): `pillow 12.2.0 vs required 12.3.0`, `transformers 4.57.6 vs 5.15.0` — runtime + tests green regardless. `uv run` unusable from Windows PowerShell here (`.venv` is WSL-style with `bin/`, and `uv` tries to recreate it but can't remove the `lib64` symlink — Access denied); housekeeping item: recreate the venv from inside WSL2 or set `UV_PROJECT_ENVIRONMENT`. `outputs/verify-batch/` artifacts are git-ignored. `git status`: 12 modified + 3 new files (`CURRENT_STAGE.md`, `eval/batch.py`, `eval/recommendation.py`).
 
@@ -118,6 +137,7 @@ Test + env status (2026-09-14): **20/20 pass** on system Python 3.13 (editable i
 | Beyond Phase 3: Isaac 6 GB perf validation, multi-robot batching (spec `docs/batching.md`), learned recommendation (spec, current 4 rules), camera calibration + DR (spec), RL/dataset (backlog) | 🔲 Spec/partial |
 | Beyond Phase 3 incremental slices (2026-09-14, MuJoCo-only) | ✅ Done: sequential `aegis eval-batch` (`src/aegis/eval/batch.py`), MuJoCo DR `--dr` (`MujocoPickPlaceEnv`), recommendation `features` + `heuristic_v1` label (`src/aegis/eval/recommendation.py`). Deferred: parallel batching, P3a USD calibration, `learned_v1` training, RL |
 | GR00T N1.7 Phase A (2026-09-14) | ✅ Done: `GrootPolicySpec` + `kind: groot`, `configs/models/groot_n17.yaml` (`LIBERO_PANDA`), `policies/groot.py` honest stub (exit 2 without checkpoint), CLI factory arm, 4 new tests — suite 24/24 green. Phase B (in-process loading) pending |
+| GR00T N1.7 Phase B (2026-09-14) | ✅ Implemented, awaiting weights: vendor load via Isaac-GR00T `Gr00tPolicy`, `image`+`wrist_image` obs map, 16-step absolute chunk buffer, DLS adapt, per-chunk `torch.manual_seed` determinism, rpy roundtrip + stubbed-vendor tests — suite 28/28 green. Embodiment resolved: base `GR00T-N1.7-3B` refused (`libero_sim` POSTTRAIN-only); target is `GR00T-N1.7-LIBERO` suite subdir. First real-weights run pending user weight drop |
 
 ---
 

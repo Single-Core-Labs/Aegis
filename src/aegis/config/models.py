@@ -69,6 +69,9 @@ class GrootPolicySpec(BaseModel):
     # far heavier than SmolVLA-450M — no 6GB promises until measured (Phase D).
     quantize: Literal["none", "int8"] = Field(default="none")
     server_url: str = Field(default="", min_length=0)
+    # Filesystem path to the Isaac-GR00T repo checkout (provides the `gr00t`
+    # python package). "" = search $GR00T_REPO, then <repo>/third_party/Isaac-GR00T.
+    repo_path: str = Field(default="", min_length=0)
 
 
 ModelPolicySpec = RandomPolicySpec | ScriptedPolicySpec | SmolVLAPolicySpec | GrootPolicySpec

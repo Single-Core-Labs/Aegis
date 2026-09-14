@@ -1,10 +1,20 @@
 # GR00T N1.7 Integration — Feature Plan
 
-> **Status:** Phase A DONE (2026-09-14) — config + honest stub; Phases B–D pending
-> **Target:** NVIDIA Isaac GR00T N1.7 (`nvidia/GR00T-N1.7`) evaluated through Aegis on Franka Panda + LIBERO
-> **Ground truths:** code Apache 2.0, **weights NVIDIA Open Model License** (commercially usable, not Apache);
-> `LIBERO_PANDA` is a pre-registered embodiment; I/O is LeRobot format; deploy API is
-> `Gr00tPolicy.get_action(obs)` / PolicyServer; Isaac Lab 3.0 Beta is Lab-2.x-compatible on Isaac Sim 6.0.1.
+> **Status:** Phase B IMPLEMENTED, awaiting weights (2026-09-14) — adapter, obs mapping,
+> chunk buffer, DLS adapt, determinism seeding, and stubbed-vendor unit tests all green
+> (28/28 suite). No real-weights run yet.
+> **Needed to run:** one suite subdir of `nvidia/GR00T-N1.7-LIBERO` on local disk
+> (`libero_object/` recommended) + `policy.repo_path` pointing at the Isaac-GR00T checkout.
+> **Target:** NVIDIA Isaac GR00T N1.7 (`nvidia/GR00T-N1.7-3B` — note `-3B` suffix; `nvidia/GR00T-N1.7` 404s)
+> **Ground truths (verified 2026-09-14 against the published checkpoint):** code Apache 2.0,
+> **weights NVIDIA Open Model License**; LeRobot I/O; deploy API `Gr00tPolicy.get_action(obs)` /
+> PolicyServer; Isaac Lab 3.0 Beta is Lab-2.x-compatible on Isaac Sim 6.0.1.
+> ⚠️ The checkpoint's `embodiment_id.json` (52 tags) contains **no `LIBERO_PANDA`**.
+> Closest Franka match is `robocasa_panda_omron`, whose modality config is **not** in the
+> shipped `processor_config.json` (only 8 configs: oxe/g1/sharpa/xdof variants). Zero-shot
+> GR00T on our Franka scene is therefore NOT a tag lookup — the modality config must come
+> from the Isaac-GR00T repo code or from post-training (`launch_finetune.py`). Do not cite
+> HF-blog LIBERO_PANDA claims; they don't match the checkpoint.
 
 ---
 

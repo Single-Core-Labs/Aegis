@@ -358,8 +358,9 @@ def eval_batch(
         f"(success {s['success']} / fail {s['fail']})  "
         f"violations {s['safety_violations']}  recoveries {s['recovery_events']}"
     )
-    for rep in combo_reports:
-        typer.echo(f"  - {rep['robot']}/{rep['model']}: {rep['task_counts']}")
+    for combo, rep in zip(combos, combo_reports):
+        counts = rep['task_counts']
+        typer.echo(f"  - {combo['robot']}/{combo['model']}: {counts}")
     typer.echo(f"report        : {batch_path}")
     raise typer.Exit(EXIT_OK)
 

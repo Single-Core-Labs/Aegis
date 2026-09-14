@@ -287,7 +287,171 @@ class TestGr00TConfig:
 
         with pytest.raises(ConfigError, match="Phase B"):
             Gr00tPolicy(
-                endpoint="nvidia/GR00T-N1.7",
+                endpoint="nvidia/GR00T-N1.7-LIBERO/libero_object",
                 spec=GrootPolicySpec(instruction="pick up the red cube"),
+                env=None,  # type: ignore[arg-type]
+            )
+
+
+class _FakeModality:
+    def __init__(self, keys, horizon):
+        self.modality_keys = list(keys)
+        self.delta_indices = list(range(horizon))
+
+
+def _fake_gr00t_modules(monkeypatch):
+    import sys
+    import types
+
+    video_keys = ("image", "wrist_image")
+    state_keys = ("x", "y", "z", "roll", "pitch", "yaw", "gripper")
+    calls = {"n": 0}
+
+    class FakeVendorPolicy:
+        def __init__(self, embodiment_tag, model_path, device="cpu"):
+            self.modality_configs = {
+                "video": _FakeModality(video_keys, 1),
+                "state": _FakeModality(state_keys, 1),
+                "action": _FakeModality(state_keys, 16),
+                "language": _FakeModality(
+                    ["annotation.human.action.task_description"], 1
+                ),
+            }
+
+        def get_action(self, obs):
+            calls["n"] += 1
+            chunk = np.zeros((16, 7), dtype=np.float32)
+            chunk[:, 2] = 0.5
+            return (
+                {k: chunk[:, i].reshape(1, 16, 1) for i, k in enumerate(state_keys)},
+                {},
+            )
+
+    pkg = types.ModuleType("gr00t")
+    data_pkg = types.ModuleType("gr00t.data")
+    tags_mod = types.ModuleType("gr00t.data.embodiment_tags")
+
+    class FakeTag:
+        value = "libero_sim"
+
+    class FakeEmbodimentTag:
+        @staticmethod
+        def resolve(tag):
+            if str(tag).upper() in ("LIBERO_PANDA", "LIBERO_SIM"):
+                return FakeTag()
+            raise ValueError(f"Unknown embodiment tag: {tag!r}")
+
+    tags_mod.EmbodimentTag = FakeEmbodimentTag
+    policy_pkg = types.ModuleType("gr00t.policy")
+    vendor_mod = types.ModuleType("gr00t.policy.gr00t_policy")
+    vendor_mod.Gr00tPolicy = FakeVendorPolicy
+    monkeypatch.setitem(sys.modules, "gr00t", pkg)
+    monkeypatch.setitem(sys.modules, "gr00t.data", data_pkg)
+    monkeypatch.setitem(sys.modules, "gr00t.data.embodiment_tags", tags_mod)
+    monkeypatch.setitem(sys.modules, "gr00t.policy", policy_pkg)
+    monkeypatch.setitem(sys.modules, "gr00t.policy.gr00t_policy", vendor_mod)
+    return calls
+
+
+class _FakeGrootEnv:
+    """Real MuJoCo model/data (jacobians work headless), stubbed renderer."""
+
+    def __init__(self, real_env):
+        self._real = real_env
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+    def render_images(self, cameras):
+        rng = np.random.default_rng(0)
+        return {
+            c: rng.integers(0, 255, size=(256, 256, 3), dtype=np.uint8)
+            for c in cameras
+        }
+
+
+def _groot_repo_stub(tmp_path):
+    marker = tmp_path / "gr00t" / "policy" / "gr00t_policy.py"
+    marker.parent.mkdir(parents=True)
+    marker.write_text("# stub marker for _resolve_gr00t_repo", encoding="utf-8")
+    ckpt = tmp_path / "ckpt"
+    ckpt.mkdir()
+    (ckpt / "processor_config.json").write_text("{}", encoding="utf-8")
+    return tmp_path, ckpt
+
+
+class TestGr00TAdapter:
+    def test_rpy_roundtrip(self) -> None:
+        from aegis.policies.groot import mat_to_rpy, rpy_to_mat
+
+        rng = np.random.default_rng(0)
+        for _ in range(20):
+            rpy = rng.uniform([-np.pi, -np.pi / 2 + 0.1, -np.pi], [np.pi, np.pi / 2 - 0.1, np.pi])
+            R = rpy_to_mat(rpy)
+            R2 = rpy_to_mat(mat_to_rpy(R))
+            assert np.allclose(R, R2, atol=1e-9)
+
+    def test_chunk_buffer_serves_16_steps_per_inference(self, tmp_path, monkeypatch) -> None:
+        from aegis.config.models import GrootPolicySpec
+        from aegis.policies.groot import Gr00tPolicy
+
+        calls = _fake_gr00t_modules(monkeypatch)
+        repo, ckpt = _groot_repo_stub(tmp_path)
+        real_env = MujocoPickPlaceEnv(scene_mjcf=SCENE, task=TaskSpec(), time_step=0.02)
+        try:
+            policy = Gr00tPolicy(
+                endpoint=str(ckpt),
+                spec=GrootPolicySpec(
+                    instruction="pick up the red cube", repo_path=str(repo)
+                ),
+                env=_FakeGrootEnv(real_env),
+            )
+            obs = real_env.reset(1)
+            assert policy.embodiment_tag == "LIBERO_PANDA"
+            first = policy.act(obs)
+            assert first.shape == (8,) and np.isfinite(first).all()
+            assert calls["n"] == 1
+            for _ in range(15):
+                a = policy.act(obs)
+                assert a.shape == (8,) and np.isfinite(a).all()
+            assert calls["n"] == 1, "16-step chunk must serve 16 acts"
+            policy.act(obs)
+            assert calls["n"] == 2, "chunk exhaustion must re-infer"
+        finally:
+            real_env.close()
+
+    def test_missing_repo_is_config_error(self, tmp_path) -> None:
+        from aegis.config.loader import ConfigError
+        from aegis.config.models import GrootPolicySpec
+        from aegis.policies.groot import Gr00tPolicy
+
+        ckpt = tmp_path / "ckpt"
+        ckpt.mkdir()
+        (ckpt / "processor_config.json").write_text("{}", encoding="utf-8")
+        with pytest.raises(ConfigError, match="Isaac-GR00T repo not found"):
+            Gr00tPolicy(
+                endpoint=str(ckpt),
+                spec=GrootPolicySpec(
+                    instruction="pick up the red cube",
+                    repo_path=str(tmp_path / "nope"),
+                ),
+                env=None,  # type: ignore[arg-type]
+            )
+
+    def test_unknown_tag_is_config_error(self, tmp_path, monkeypatch) -> None:
+        from aegis.config.loader import ConfigError
+        from aegis.config.models import GrootPolicySpec
+        from aegis.policies.groot import Gr00tPolicy
+
+        _fake_gr00t_modules(monkeypatch)
+        repo, ckpt = _groot_repo_stub(tmp_path)
+        with pytest.raises(ConfigError, match="Unknown GR00T embodiment tag"):
+            Gr00tPolicy(
+                endpoint=str(ckpt),
+                spec=GrootPolicySpec(
+                    instruction="pick up the red cube",
+                    embodiment_tag="NOT_A_ROBOT",
+                    repo_path=str(repo),
+                ),
                 env=None,  # type: ignore[arg-type]
             )

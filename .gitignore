@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 *.egg-info/
 outputs/
+# User-supplied third-party drops (never commit): Isaac-GR00T repo + checkpoints.
+third_party/
+*.safetensors
+*.bin

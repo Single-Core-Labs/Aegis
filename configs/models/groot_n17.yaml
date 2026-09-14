@@ -1,18 +1,22 @@
-# GR00T N1.7 (Franka + LIBERO) — Phase A: config validates, eval pending Phase B.
+# GR00T N1.7 (Franka + LIBERO) — Phase B: in-process loading via Isaac-GR00T repo.
 #
 # Weights: NVIDIA Open Model License (commercially usable, NOT Apache-2.0).
-# Pinned checkpoint nvidia/GR00T-N1.7 — never `latest`.
-# Pre-registered embodiment LIBERO_PANDA matches our Franka + LIBERO scene, so
-# first eval needs no post-training (see docs/groot-integration-plan.md).
+# CORRECT checkpoint: post-trained nvidia/GR00T-N1.7-LIBERO suite subdir
+# (libero_object/ recommended for pick-place, libero_spatial/ as ablation).
+# Base nvidia/GR00T-N1.7-3B does NOT work — libero_sim is POSTTRAIN-only and the
+# vendor constructor refuses it (verified 2026-09-14). Never `latest`.
 name: groot_n17
 kind: groot
-endpoint: nvidia/GR00T-N1.7
+endpoint: nvidia/GR00T-N1.7-LIBERO/libero_object
 load_params:
   device: auto
 policy:
   kind: groot
   instruction: pick up the red cube and place it on the green target
-  cameras: [camera1, camera2, camera3]
+  cameras: [camera1, camera2, camera3]  # [0]=image, [1]=wrist_image
+  # EmbodimentTag registry name (LIBERO_PANDA = libero_sim). Must be served by
+  # the checkpoint's modality configs or the vendor raises (surfaced verbatim).
   embodiment_tag: LIBERO_PANDA
   quantize: none  # int8 later (Phase D); 3B+backbone vs 6GB unmeasured — no promises
   server_url: ""  # Phase D: PolicyServer URL; empty = in-process (Phase B)
+  repo_path: ""  # Isaac-GR00T checkout; "" = $GR00T_REPO, then third_party/Isaac-GR00T
