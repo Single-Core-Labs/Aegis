@@ -13,6 +13,7 @@ from aegis.config.models import (
     RandomPolicySpec,
     ScriptedPolicySpec,
     SmolVLAPolicySpec,
+    GrootPolicySpec,
 )
 from aegis.envs.mujoco_pick_place import MujocoPickPlaceEnv
 from aegis.eval.batch import build_batch_report, combo_dir_name, combo_seed
@@ -21,6 +22,7 @@ from aegis.eval.runner import EvalRunner
 from aegis.policies.random import RandomPolicy
 from aegis.policies.scripted import ScriptedPolicy
 from aegis.policies.smolvla import SmolVLAPolicy
+from aegis.policies.groot import Gr00tPolicy
 from aegis.ros2.bridge import RosBridge, benchmark_latency
 from aegis.safety.fallback import PidToHomeFallback
 from aegis.safety.gateway import SafetyGateway
@@ -90,6 +92,23 @@ def _build_policy(cfg: PhysicalAIYaml, env):
                     "eval.inference_mode=cuda but torch.cuda is not available"
                 )
         return SmolVLAPolicy(
+            endpoint=cfg.model.endpoint,
+            spec=cfg.model.policy,
+            env=env,
+            device=cfg.eval.inference_mode,
+        )
+    if cfg.model.kind == "groot":
+        assert isinstance(cfg.model.policy, GrootPolicySpec)
+        if cfg.eval.inference_mode == "cuda":
+            import torch
+
+            if not torch.cuda.is_available():
+                raise ConfigError(
+                    "eval.inference_mode=cuda but torch.cuda is not available"
+                )
+        # Phase A: Gr00tPolicy.__init__ raises an honest ConfigError
+        # (checkpoint loading lands in Phase B, PolicyServer in Phase D).
+        return Gr00tPolicy(
             endpoint=cfg.model.endpoint,
             spec=cfg.model.policy,
             env=env,

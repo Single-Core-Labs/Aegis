@@ -42,28 +42,54 @@ class SmolVLAPolicySpec(BaseModel):
     )
     # int8 quantization for VRAM-safe: ~1GB -> ~0.6GB, frees ~0.4GB for Isaac on 6GB
     quantize: Literal["none", "int8"] = Field(default="none")
-    headless: bool = False  # Isaac headless: no window, offscreen 256x256 only
+    headless: bool = False  # Isaac headless: --headless, no window, offscreen 256x256 only
 
 
-ModelPolicySpec = RandomPolicySpec | ScriptedPolicySpec | SmolVLAPolicySpec
+class GrootPolicySpec(BaseModel):
+    """NVIDIA Isaac GR00T N1.7 policy (Phase A: config + honest stub).
+
+    Weights: NVIDIA Open Model License (commercially usable, NOT Apache-2.0).
+    Pinned checkpoint, never `latest` (upstream moves N1.5->N1.6->N1.7 fast).
+    `endpoint` (on ModelSpec) is the local checkpoint dir OR HF repo id for
+    in-process mode (Phase B); `server_url` selects PolicyServer mode (Phase D).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["groot"] = "groot"
+    instruction: str = Field(min_length=1)
+    cameras: list[str] = Field(
+        default_factory=lambda: ["camera1", "camera2", "camera3"]
+    )
+    # Pre-registered GR00T embodiment tag. LIBERO_PANDA matches our Franka +
+    # LIBERO scene, so first eval needs no post-training. Humanoid tags
+    # (UNITREE_G1, ...) reuse this field later without re-architecting.
+    embodiment_tag: str = Field(default="LIBERO_PANDA", min_length=1)
+    # int8 quantization for VRAM-safe (mirrors SmolVLA); 3B + VLM backbone is
+    # far heavier than SmolVLA-450M — no 6GB promises until measured (Phase D).
+    quantize: Literal["none", "int8"] = Field(default="none")
+    server_url: str = Field(default="", min_length=0)
+
+
+ModelPolicySpec = RandomPolicySpec | ScriptedPolicySpec | SmolVLAPolicySpec | GrootPolicySpec
 
 
 class ModelSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1)
-    kind: Literal["random", "scripted", "smolvla"]
+    kind: Literal["random", "scripted", "smolvla", "groot"]
     policy: ModelPolicySpec
     endpoint: str = Field(default="", min_length=0)
     load_params: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _check_endpoint(self) -> "ModelSpec":
-        if self.kind == "smolvla" and not self.endpoint:
-            raise ValueError("model.kind 'smolvla' requires model.endpoint")
-        if self.kind != "smolvla" and self.endpoint:
+        if self.kind in ("smolvla", "groot") and not self.endpoint:
+            raise ValueError(f"model.kind {self.kind!r} requires model.endpoint")
+        if self.kind not in ("smolvla", "groot") and self.endpoint:
             raise ValueError(
-                f"model.endpoint is only valid for kind='smolvla' (got {self.kind!r})"
+                f"model.endpoint is only valid for kind='smolvla' or 'groot' (got {self.kind!r})"
             )
         return self
 

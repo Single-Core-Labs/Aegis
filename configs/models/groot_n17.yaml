@@ -1,0 +1,18 @@
+# GR00T N1.7 (Franka + LIBERO) — Phase A: config validates, eval pending Phase B.
+#
+# Weights: NVIDIA Open Model License (commercially usable, NOT Apache-2.0).
+# Pinned checkpoint nvidia/GR00T-N1.7 — never `latest`.
+# Pre-registered embodiment LIBERO_PANDA matches our Franka + LIBERO scene, so
+# first eval needs no post-training (see docs/groot-integration-plan.md).
+name: groot_n17
+kind: groot
+endpoint: nvidia/GR00T-N1.7
+load_params:
+  device: auto
+policy:
+  kind: groot
+  instruction: pick up the red cube and place it on the green target
+  cameras: [camera1, camera2, camera3]
+  embodiment_tag: LIBERO_PANDA
+  quantize: none  # int8 later (Phase D); 3B+backbone vs 6GB unmeasured — no promises
+  server_url: ""  # Phase D: PolicyServer URL; empty = in-process (Phase B)

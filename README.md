@@ -169,7 +169,7 @@ aegis rosbench  Benchmark ROS 2 bridge publish latency (mock vs real)
 
 | Flag | Description | Default |
 |---|---|---|
-| `--model` | Model config in `configs/models/<name>.yaml` (`random` / `scripted` / `smolvla_libero`) | `random` |
+| `--model` | Model config in `configs/models/<name>.yaml` (`random` / `scripted` / `smolvla_libero` / `groot_n17` — groot validates config in Phase A, eval lands in Phase B) | `random` |
 | `--robot` | Robot config in `configs/robots/<name>.yaml` (`franka` / `franka_uniform`) | `franka` |
 | `--sim` | Simulator backend (`mujoco` / `isaaclab`) | `mujoco` |
 | `--tasks` | Task (`pick-place`) | `pick-place` |

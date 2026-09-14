@@ -252,3 +252,42 @@ class TestSmolVLAConfig:
     def test_invalid_inference_mode_rejected(self) -> None:
         with pytest.raises(Exception):
             EvalSpec(inference_mode="quantum")
+
+
+class TestGr00TConfig:
+    """Phase A acceptance: config validates, eval fails honestly (exit 2)."""
+
+    def test_groot_model_config_loads(self) -> None:
+        result = _run_pai(["validate", "--model", "groot_n17"])
+        assert result.returncode == 0, result.stderr
+        assert "config OK" in result.stdout
+
+    def test_groot_requires_endpoint(self) -> None:
+        from aegis.config.models import GrootPolicySpec
+
+        with pytest.raises(ValueError, match="requires model.endpoint"):
+            ModelSpec(
+                name="x",
+                kind="groot",
+                policy=GrootPolicySpec(instruction="pick up the red cube"),
+            )
+
+    def test_groot_eval_without_checkpoint_fails_honest_exit_2(self, tmp_path) -> None:
+        out = tmp_path / "out"
+        result = _run_pai(
+            ["eval", "--model", "groot_n17", "--episodes", "1", "--output-dir", str(out)]
+        )
+        assert result.returncode == 2, result.stdout
+        assert "Phase B" in result.stderr, result.stderr
+
+    def test_groot_act_backstop_raises_model_error(self) -> None:
+        from aegis.config.loader import ConfigError
+        from aegis.config.models import GrootPolicySpec
+        from aegis.policies.groot import Gr00tPolicy
+
+        with pytest.raises(ConfigError, match="Phase B"):
+            Gr00tPolicy(
+                endpoint="nvidia/GR00T-N1.7",
+                spec=GrootPolicySpec(instruction="pick up the red cube"),
+                env=None,  # type: ignore[arg-type]
+            )
