@@ -133,6 +133,13 @@ class TaskSpec(BaseModel):
     object_name: str = "object"
     target_name: str = "target"
     max_grasp_attempts: int = Field(default=3, ge=1, le=10)
+    # P3b MuJoCo-only domain randomization (seeded per episode: rng = seed+episode).
+    # Disabled by default; enable via task YAML or --dr flag. Isaac USD-camera
+    # calibration (P3a) still requires real Isaac USD and is NOT covered here.
+    domain_randomization: bool = False
+    dr_light_jitter_m: float = Field(default=0.1, ge=0, le=1.0)
+    dr_friction_delta: float = Field(default=0.002, ge=0, le=1.0)
+    dr_camera_jitter_m: float = Field(default=0.02, ge=0, le=0.5)
 
 
 class OutputSpec(BaseModel):

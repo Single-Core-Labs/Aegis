@@ -3,3 +3,10 @@ success_threshold_m: 0.05
 object_name: object
 target_name: target
 max_grasp_attempts: 3
+# P3b MuJoCo-only domain randomization (seeded per episode). Disabled by
+# default; enable with `domain_randomization: true` or `aegis eval --dr`.
+# Isaac USD-camera calibration (P3a) is separate and still pending.
+domain_randomization: false
+dr_light_jitter_m: 0.1
+dr_friction_delta: 0.002
+dr_camera_jitter_m: 0.02

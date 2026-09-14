@@ -5,6 +5,11 @@ from typing import Any
 
 from aegis.config.models import PhysicalAIYaml
 from aegis.eval.metrics import summarize
+from aegis.eval.recommendation import (
+    RECOMMENDATION_MODEL,
+    extract_features,
+    recommend,
+)
 from aegis.eval.runner import EpisodeResult
 
 
@@ -40,6 +45,12 @@ def build_report(
     warnings.append("recommendation line is rule-based (4 rules), not learned")
     if m["episodes"] == 0:
         warnings.append("no episodes completed — check logs for errors")
+    dr_enabled = bool(cfg.task.domain_randomization)
+    if dr_enabled:
+        warnings.append("domain randomization enabled (seeded MuJoCo DR: light/friction/camera)")
+    gpu_h = _gpu_hours(cfg, m)
+    features = extract_features(m, gpu_hours=gpu_h, dr_enabled=dr_enabled)
+    structured = recommend(m, features)
     report = {
         "run_id": run_id,
         "model": cfg.model.name,
@@ -63,6 +74,12 @@ def build_report(
         "total_steps": m["total_steps"],
         "total_duration_s": m["total_duration_s"],
         "recommendation": _recommendation(m),
+        "recommendation_model": RECOMMENDATION_MODEL,
+        "recommendation_label": structured["label"],
+        "recommendation_confidence": structured["confidence"],
+        "recommendation_evidence": structured["evidence"],
+        "features": features,
+        "domain_randomization": {"enabled": dr_enabled} if dr_enabled else {"enabled": False},
         "warnings": warnings,
     }
     return report

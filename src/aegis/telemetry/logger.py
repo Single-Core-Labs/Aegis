@@ -61,12 +61,12 @@ class RunLogger:
             json.dumps(payload, indent=2), encoding="utf-8"
         )
 
-    def episode_start(self, episode: int, seed: int) -> None:
+    def episode_start(self, episode: int, seed: int, dr: dict[str, Any] | None = None) -> None:
         self._step_episode = episode
-        self._episodes_fh.write(
-            json.dumps({"event": "episode_start", "episode": episode, "seed": seed})
-            + "\n"
-        )
+        payload: dict[str, Any] = {"event": "episode_start", "episode": episode, "seed": seed}
+        if dr is not None:
+            payload["domain_randomization"] = _clean(dr)
+        self._episodes_fh.write(json.dumps(payload) + "\n")
         self._episodes_fh.flush()
 
     def step(

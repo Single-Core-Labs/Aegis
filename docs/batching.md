@@ -1,18 +1,21 @@
 # Multi-Robot / Multi-Task Batching — Spec (P3)
 
-**Status:** Spec only — not implemented until Phase 3 real is green (scope discipline).
+**Status:** Sequential batching IMPLEMENTED (`aegis eval-batch`, `src/aegis/eval/batch.py`).
+Parallel episodes / Isaac `num_envs` NOT implemented (deferred until real USD exists).
 
 ## Goal
 
 Run `aegis eval` over a Cartesian product of `robots × models × tasks × seeds` in one invocation, with parallel episodes where safe, and a single aggregated `report.json`.
 
-## CLI Sketch (future)
+## CLI (implemented — sequential only)
 
 ```bash
-# Sequential (default, safe):
-uv run aegis eval --robots franka,franka_diag --models scripted,random --tasks pick-place --episodes 3 --seed 42
+# Sequential (default, safe) — one isolated env per combo:
+uv run aegis eval-batch --models scripted,random --robots franka --tasks pick-place --episodes 3 --seed 42
+```
 
-# Parallel episodes (requires --parallel N, isolated envs):
+```bash
+# Parallel episodes (NOT implemented — requires --parallel N, isolated envs):
 uv run aegis eval --model scripted --episodes 20 --seed 42 --parallel 4 --output-dir outputs/batch-20260909
 ```
 
@@ -43,4 +46,5 @@ outputs/batch-20260909/
 
 ## Not Building Now
 
-Tracked here for roadmap visibility; implementation waits for Phase 3 Gates 0-4.
+Parallel episodes (`--parallel N`) and Isaac `num_envs` batching. Tracked here
+for roadmap visibility; implementation waits for Phase 3 Gates 0-4.

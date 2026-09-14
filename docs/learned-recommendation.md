@@ -1,6 +1,11 @@
 # Learned Recommendation — Spec (P3)
 
-**Current:** 4-rule heuristic `src/aegis/eval/report.py:11` — deterministic, flagged as `warnings: ["recommendation line is rule-based (4 rules), not learned"]`.
+**Current:** `heuristic_v1` — the same 4 deterministic rules, now exposed as
+structured `{label, confidence, evidence}` + per-run `features` in every
+`report.json` (`src/aegis/eval/recommendation.py`). The legacy
+`recommendation` string is unchanged (backward-compatible). A real `learned_v1`
+classifier is NOT trained yet — the report honestly carries
+`recommendation_model: "heuristic_v1"`.
 
 ```python
 def _recommendation(m):

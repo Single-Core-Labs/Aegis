@@ -80,11 +80,24 @@ class MujocoPickPlaceEnv(Env):
         self._q_target = self._home_arm_qpos.copy()
         self._render_cameras = list(render_cameras or [])
         self._renderer: mujoco.Renderer | None = None
+        # P3b DR nominals (restored at each reset before applying jitter, so
+        # episodes never accumulate drift on the shared MjModel).
+        self._nominal_light_pos = np.asarray(self._model.light_pos.copy(), dtype=float)
+        self._nominal_cam_pos = np.asarray(self._model.cam_pos.copy(), dtype=float)
+        self._nominal_object_friction = np.asarray(
+            self._model.geom_friction[self._object_geom_id].copy(), dtype=float
+        )
+        self._last_dr: dict[str, Any] | None = None
 
     # ------------------------------------------------------------------ Env API
 
     def reset(self, seed: int) -> dict[str, np.ndarray]:
         self._rng = np.random.default_rng(seed)
+        # Restore DR-mutated statics before applying this episode's jitter.
+        self._model.light_pos[:] = self._nominal_light_pos
+        self._model.cam_pos[:] = self._nominal_cam_pos
+        self._model.geom_friction[self._object_geom_id] = self._nominal_object_friction
+        self._last_dr = self._apply_domain_randomization() if self._task.domain_randomization else None
         self._data.qpos[:] = self._model.key_qpos[0]
         self._data.qvel[:] = 0.0
         self._q_target = self._home_arm_qpos.copy()
@@ -156,6 +169,8 @@ class MujocoPickPlaceEnv(Env):
             "grasp_contact_force": round(float(contact_force), 4),
             "object_to_target_dist": round(dist, 5),
         }
+        if self._last_dr is not None:
+            info["domain_randomization"] = dict(self._last_dr)
         return self.observe(), bool(success), False, info
 
     def observe(self) -> dict[str, np.ndarray]:
@@ -241,6 +256,36 @@ class MujocoPickPlaceEnv(Env):
             if f_mag >= self._grasp_force_threshold:
                 has_contact = True
         return has_contact, max_force
+
+    def _apply_domain_randomization(self) -> dict[str, Any]:
+        """Seeded MuJoCo-only DR (P3b). Uses self._rng (= seed+episode from runner).
+
+        Jitters light positions, object sliding friction, and camera positions
+        within the task-configured ranges. Returns the applied deltas for logging.
+        """
+        assert self._rng is not None
+        lj = float(self._task.dr_light_jitter_m)
+        fd = float(self._task.dr_friction_delta)
+        cj = float(self._task.dr_camera_jitter_m)
+        light_delta = self._rng.uniform(-lj, lj, size=self._nominal_light_pos.shape)
+        cam_delta = self._rng.uniform(-cj, cj, size=self._nominal_cam_pos.shape)
+        friction_delta = float(self._rng.uniform(-fd, fd))
+        self._model.light_pos[:] = self._nominal_light_pos + light_delta
+        self._model.cam_pos[:] = self._nominal_cam_pos + cam_delta
+        new_friction = self._nominal_object_friction.copy()
+        new_friction[0] = max(0.001, float(new_friction[0]) + friction_delta)
+        self._model.geom_friction[self._object_geom_id] = new_friction
+        return {
+            "enabled": True,
+            "light_jitter_m": lj,
+            "friction_delta": round(friction_delta, 6),
+            "camera_jitter_m": cj,
+            "object_friction": [round(float(v), 6) for v in new_friction.tolist()],
+        }
+
+    @property
+    def last_dr(self) -> dict[str, Any] | None:
+        return dict(self._last_dr) if self._last_dr is not None else None
 
     def close(self) -> None:
         if self._renderer is not None:

@@ -162,6 +162,7 @@ uv run aegis eval --model smolvla_libero --inference-mode cuda --episodes 3 --se
 
 ```
 aegis eval      Run a safety-gated evaluation and emit a report
+aegis eval-batch  Run a sequential batch over robots x models x tasks (one isolated env per combo) + aggregated report
 aegis validate  Validate config and asset paths without running
 aegis rosbench  Benchmark ROS 2 bridge publish latency (mock vs real)
 ```
@@ -177,6 +178,7 @@ aegis rosbench  Benchmark ROS 2 bridge publish latency (mock vs real)
 | `--max-steps` | Max steps per episode | `2500` |
 | `--inference-mode` | `cpu` / `cuda` | `cpu` |
 | `--inference-budget-ms` | Per-step budget; over-budget → fallback | `2000.0` |
+| `--dr / --no-dr` | Override `task.domain_randomization` (seeded MuJoCo light/friction/camera jitter) | task YAML (`false`) |
 | `--config` | Root config file | `physical-ai.yaml` |
 | `--output-dir` | Output directory | `./outputs` |
 | `--run-id` | Override auto-generated `run-YYYYMMDDTHHMMSSZ` | auto |

@@ -154,3 +154,8 @@ class IsaacPickPlaceEnv(Env):
     @property
     def is_fallback(self) -> bool:
         return self._using_fallback
+
+    @property
+    def last_dr(self) -> dict[str, Any] | None:
+        dr = getattr(self._delegate, "last_dr", None)
+        return dict(dr) if dr is not None else None

@@ -88,8 +88,8 @@ class EvalRunner:
     def _run_episode(self, ep: int, seed: int) -> EpisodeResult:
         env, gateway = self._env, self._gateway
         cfg = self._cfg.eval
-        self._logger.episode_start(ep, seed)
         env.reset(seed)
+        self._logger.episode_start(ep, seed, dr=getattr(env, "last_dr", None))
         gateway.reset_episode()
         self._policy.reset(seed)
 
