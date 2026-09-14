@@ -6,7 +6,11 @@ readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "typer>=0.12",
+    # Floor 0.16: first generation with Click 8.2+ support. Older typer crashes
+    # on --help (rich rendering: Parameter.make_metavar() missing 'ctx')
+    # when paired with click>=8.2. Lockfile resolves 0.27.1; keep floor here
+    # so plain `pip install` users can't land on the broken combination.
+    "typer>=0.16",
     "pydantic>=2.7",
     "pyyaml>=6.0",
     "numpy>=1.26",
