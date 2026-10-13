@@ -107,7 +107,14 @@ class MujocoPickPlaceEnv(Env):
         pos[:2] += jitter
         obj_adr = self._model.body(self._task.object_name).jntadr[0]
         self._data.qpos[obj_adr : obj_adr + 3] = pos
-        self._data.qpos[obj_adr + 3 : obj_adr + 7] = np.array([1.0, 0.0, 0.0, 0.0])
+        yaw = float((self._last_dr or {}).get("object_yaw_rad", 0.0) or 0.0)
+        if yaw:
+            half = yaw / 2.0
+            self._data.qpos[obj_adr + 3 : obj_adr + 7] = np.array(
+                [np.cos(half), 0.0, 0.0, np.sin(half)]
+            )
+        else:
+            self._data.qpos[obj_adr + 3 : obj_adr + 7] = np.array([1.0, 0.0, 0.0, 0.0])
         self._data.ctrl[self._gripper_actuator_id] = 255.0
         mujoco.mj_forward(self._model, self._data)
         # Hold the home pose with gravity-compensating torque so the first
@@ -125,6 +132,9 @@ class MujocoPickPlaceEnv(Env):
             raise RuntimeError("step() called before reset()")
         vel = np.clip(np.asarray(action[:7], dtype=float), -1.0, 1.0)
         gripper = float(np.clip(action[7], 0.0, 1.0))
+        gn = float(getattr(self._task, "dr_gripper_noise", 0.0) or 0.0)
+        if gn > 0 and self._last_dr is not None and self._rng is not None:
+            gripper = float(np.clip(gripper + self._rng.uniform(-gn, gn), 0.0, 1.0))
         # Velocity control like a real Franka controller: integrate the commanded
         # velocity into a position target, then track it with a gravity-compensated
         # torque controller (feedforward gravity + P on target error + D on
@@ -267,6 +277,7 @@ class MujocoPickPlaceEnv(Env):
         lj = float(self._task.dr_light_jitter_m)
         fd = float(self._task.dr_friction_delta)
         cj = float(self._task.dr_camera_jitter_m)
+        yaw = float(getattr(self._task, "dr_object_yaw_rad", 0.0) or 0.0)
         light_delta = self._rng.uniform(-lj, lj, size=self._nominal_light_pos.shape)
         cam_delta = self._rng.uniform(-cj, cj, size=self._nominal_cam_pos.shape)
         friction_delta = float(self._rng.uniform(-fd, fd))
@@ -275,11 +286,13 @@ class MujocoPickPlaceEnv(Env):
         new_friction = self._nominal_object_friction.copy()
         new_friction[0] = max(0.001, float(new_friction[0]) + friction_delta)
         self._model.geom_friction[self._object_geom_id] = new_friction
+        yaw_delta = float(self._rng.uniform(-yaw, yaw)) if yaw > 0 else 0.0
         return {
             "enabled": True,
             "light_jitter_m": lj,
             "friction_delta": round(friction_delta, 6),
             "camera_jitter_m": cj,
+            "object_yaw_rad": round(yaw_delta, 6),
             "object_friction": [round(float(v), 6) for v in new_friction.tolist()],
         }
 

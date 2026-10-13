@@ -2,8 +2,10 @@
 
 **Problem:** SmolVLA `0/3` on MuJoCo fixed cameras (0.16m→0.60m, mid-air grips) is a vision domain gap vs LIBERO training distribution. Isaac Lab with photoreal cameras is the first fix; this spec is the systematic follow-on.
 
-**Status:** P3b MuJoCo-only DR IMPLEMENTED (`task.domain_randomization`,
-`aegis eval --dr`, `MujocoPickPlaceEnv._apply_domain_randomization`). P3a
+**Status:** P3b MuJoCo-only DR IMPLEMENTED + EXPANDED (`task.domain_randomization`,
+`aegis eval --dr`, `MujocoPickPlaceEnv._apply_domain_randomization`: light /
+friction / camera + object yaw `dr_object_yaw_rad` + gripper noise
+`dr_gripper_noise`). P3a
 per-model/USD camera calibration NOT implemented (requires real Isaac USD).
 
 ## P3a: Per-Model Camera Calibration

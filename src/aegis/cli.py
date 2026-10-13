@@ -239,6 +239,25 @@ def eval(
     raise typer.Exit(EXIT_OK)
 
 
+def _run_combo_worker(payload: dict) -> dict:
+    """ProcessPool worker: run one isolated combo, return combo+report.
+
+    Top-level (picklable for Windows spawn). Reconstructs config from a JSON
+    dict so no env/policy objects cross process boundaries. Each worker builds
+    its own env + gateway — no shared MjData.
+    """
+    from pathlib import Path as _Path
+
+    from aegis.config.models import PhysicalAIYaml as _PhysicalAIYaml
+
+    cfg = _PhysicalAIYaml.model_validate(payload["cfg_dict"])
+    sub = payload["sub"]
+    runs_root = _Path(payload["runs_root"])
+    combo = payload["combo"]
+    report = _run_single_cfg(cfg, sub, runs_root)
+    return {"combo": combo, "report": report}
+
+
 @app.command(name="eval-batch")
 def eval_batch(
     models: str = typer.Option("random", "--models", help="comma-separated model names (configs/models/<name>.yaml)"),
@@ -262,14 +281,18 @@ def eval_batch(
     ),
     output_dir: Path | None = typer.Option(None, "--output-dir"),
     run_id: str | None = typer.Option(None, "--run-id", help="batch id (default: batch-YYYYMMDDTHHMMSSZ)"),
+    parallel: int = typer.Option(
+        1, "--parallel", min=1, max=16,
+        help="combos in parallel (1=sequential; each worker gets one isolated env, deterministic combo seeds)",
+    ),
     verbose: bool = typer.Option(False, "--verbose", help="debug logging to stderr"),
 ) -> None:
-    """Run a sequential batch over robots x models x tasks with one isolated env per combo.
+    """Run a batch over robots x models x tasks with one isolated env per combo.
 
     Combo i uses seed = base_seed + i*1000 (deterministic regardless of order).
     Writes outputs/<batch_id>/runs/<robot>-<model>-<task>-seed<N>/... plus an
-    aggregated outputs/<batch_id>/report.json. Parallel episodes are NOT
-    implemented (see docs/batching.md).
+    aggregated outputs/<batch_id>/report.json. --parallel N runs combos in
+    separate processes (no shared MjData); aggregation is order-independent.
     """
     model_names = [m.strip() for m in models.split(",") if m.strip()]
     robot_names = [r.strip() for r in robots.split(",") if r.strip()]
@@ -300,6 +323,7 @@ def eval_batch(
     combos: list[dict] = []
     combo_reports: list[dict] = []
     idx = 0
+    jobs: list[dict] = []
     try:
         for robot_name in robot_names:
             for model_name in model_names:
@@ -332,13 +356,33 @@ def eval_batch(
                             f"task={task_name} seed={combo_seed_value}",
                             err=True,
                         )
-                    report = _run_single_cfg(cfg, sub, batch_root / batch_id / "runs")
-                    combos.append(
-                        {"robot": robot_name, "model": model_name, "task": task_name,
-                         "seed": combo_seed_value, "run_dir": f"runs/{sub}"}
-                    )
-                    combo_reports.append(report)
+                    combo = {
+                        "robot": robot_name, "model": model_name, "task": task_name,
+                        "seed": combo_seed_value, "run_dir": f"runs/{sub}",
+                    }
+                    if parallel <= 1:
+                        report = _run_single_cfg(cfg, sub, batch_root / batch_id / "runs")
+                        combos.append(combo)
+                        combo_reports.append(report)
+                    else:
+                        jobs.append({
+                            "cfg_dict": _model_to_cfg_dict(cfg),
+                            "sub": sub,
+                            "runs_root": str(batch_root / batch_id / "runs"),
+                            "combo": combo,
+                        })
                     idx += 1
+        if parallel > 1 and jobs:
+            import concurrent.futures as _futures
+
+            workers = min(int(parallel), len(jobs))
+            if verbose:
+                typer.echo(f"parallel: {workers} workers for {len(jobs)} combos", err=True)
+            with _futures.ProcessPoolExecutor(max_workers=workers) as _ex:
+                # map preserves input order -> deterministic aggregation
+                for _res in _ex.map(_run_combo_worker, jobs):
+                    combos.append(_res["combo"])
+                    combo_reports.append(_res["report"])
     except ConfigError as exc:
         typer.echo(f"config error: {exc}", err=True)
         raise typer.Exit(EXIT_CONFIG) from exc
@@ -348,7 +392,7 @@ def eval_batch(
         typer.echo(f"internal error: {exc}", err=True)
         raise typer.Exit(EXIT_INTERNAL) from exc
 
-    batch_report = build_batch_report(batch_id, combo_reports, combos)
+    batch_report = build_batch_report(batch_id, combo_reports, combos, parallel=parallel)
     batch_path = batch_root / batch_id / "report.json"
     batch_path.parent.mkdir(parents=True, exist_ok=True)
     write_report_json(batch_path, batch_report)
@@ -397,6 +441,60 @@ def validate(
         typer.echo(f"config error: {exc}", err=True)
         raise typer.Exit(EXIT_CONFIG) from exc
     typer.echo("config OK")
+    raise typer.Exit(EXIT_OK)
+
+
+@app.command(name="export")
+def export_dataset(
+    run_dir: Path = typer.Argument(..., help="finished run dir (outputs/<run_id>/)"),
+    out_dir: Path | None = typer.Option(None, "--out-dir", help="datasets dir (default: <run_dir>/datasets)"),
+) -> None:
+    """Export a finished run's NDJSON to datasets/ (parquet or jsonl)."""
+    from aegis.data.export import export_run
+
+    try:
+        meta = export_run(run_dir, out_dir)
+    except Exception as exc:
+        if "--verbose" in sys.argv:
+            traceback.print_exc(file=sys.stderr)
+        typer.echo(f"internal error: {exc}", err=True)
+        raise typer.Exit(EXIT_INTERNAL) from exc
+    dest = Path(out_dir) if out_dir is not None else run_dir / "datasets"
+    typer.echo(f"exported {len(meta['files'])} episodes -> {dest} ({meta['format']})")
+    raise typer.Exit(EXIT_OK)
+
+
+@app.command(name="data-check")
+def data_check(
+    dataset: Path = typer.Argument(..., help="datasets dir (outputs/<run_id>/datasets)"),
+) -> None:
+    """Validate an exported dataset before training (exit 2 on errors)."""
+    from aegis.data.validate import validate_dataset
+
+    errors = validate_dataset(dataset)
+    if errors:
+        for e in errors:
+            typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(EXIT_CONFIG)
+    typer.echo("dataset OK")
+    raise typer.Exit(EXIT_OK)
+
+
+@app.command(name="train-bc")
+def train_bc_cmd(
+    dataset: Path = typer.Argument(..., help="datasets dir (outputs/<run_id>/datasets)"),
+    out_dir: Path = typer.Option(Path("outputs/bc-policy"), "--out-dir"),
+    epochs: int = typer.Option(10, "--epochs", min=1, max=1000),
+) -> None:
+    """Train a behavior-cloning policy from an exported dataset."""
+    from aegis.train.bc_trainer import train_bc
+
+    try:
+        metrics = train_bc(dataset, out_dir, epochs=epochs)
+    except Exception as exc:
+        typer.echo(f"internal error: {exc}", err=True)
+        raise typer.Exit(EXIT_INTERNAL) from exc
+    typer.echo(f"bc policy -> {out_dir}  mse {metrics['mse']:.6f}  backend {metrics['backend']}  n {metrics['n']}")
     raise typer.Exit(EXIT_OK)
 
 

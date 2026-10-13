@@ -1,0 +1,15 @@
+name: ur5e
+# Second embodiment (limits-only): UR5e-style conservative limits through the
+# same MuJoCo Franka MJCF. Exercises the harness across limit sets; NOT a
+# validated UR5e kinematic model — see src/aegis/data/embodiments.py
+# (`validated: false`). True second MJCF + adapter is the follow-on.
+mjcf_path: ../../assets/menagerie/franka_emika_panda/panda_vel.xml
+
+safety:
+  max_velocity: [1.8, 1.8, 1.8, 1.8, 2.2, 2.2, 2.2]  # rad/s per joint j1..j7 (conservative)
+  max_force: [60.0, 60.0, 60.0, 60.0, 10.0, 10.0, 10.0]  # Nm per joint j1..j7
+  max_effort_action: 1.0
+  reject_nan_actions: true
+  action_clamp: reject
+  recovery_steps: 50
+  recovery_mode: resume

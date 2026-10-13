@@ -1,7 +1,9 @@
 # Multi-Robot / Multi-Task Batching — Spec (P3)
 
-**Status:** Sequential batching IMPLEMENTED (`aegis eval-batch`, `src/aegis/eval/batch.py`).
-Parallel episodes / Isaac `num_envs` NOT implemented (deferred until real USD exists).
+**Status:** Sequential + parallel-combo batching IMPLEMENTED (`aegis eval-batch`,
+`src/aegis/eval/batch.py`, `--parallel N` via ProcessPoolExecutor, one isolated
+env per worker, deterministic `combo_seed = base_seed + idx*1000`, order-independent
+aggregation). Isaac `num_envs` NOT implemented (deferred until real USD exists).
 
 ## Goal
 
@@ -15,8 +17,10 @@ uv run aegis eval-batch --models scripted,random --robots franka --tasks pick-pl
 ```
 
 ```bash
-# Parallel episodes (NOT implemented — requires --parallel N, isolated envs):
-uv run aegis eval --model scripted --episodes 20 --seed 42 --parallel 4 --output-dir outputs/batch-20260909
+# Parallel combos (N workers, deterministic seeds, same report totals):
+uv run aegis eval-batch --models scripted,random --robots franka --tasks pick-place --episodes 3 --seed 42 --parallel 4
+# NOTE: cuda inference + parallel>1 shares no GPU context per worker; on 6GB
+# cards prefer --parallel 1 for smolvla/groot cuda (see batch report warnings).
 ```
 
 ## Design Constraints

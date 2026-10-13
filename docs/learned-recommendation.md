@@ -1,11 +1,10 @@
 # Learned Recommendation — Spec (P3)
 
-**Current:** `heuristic_v1` — the same 4 deterministic rules, now exposed as
-structured `{label, confidence, evidence}` + per-run `features` in every
-`report.json` (`src/aegis/eval/recommendation.py`). The legacy
-`recommendation` string is unchanged (backward-compatible). A real `learned_v1`
-classifier is NOT trained yet — the report honestly carries
-`recommendation_model: "heuristic_v1"`.
+**Current:** `heuristic_v1` live with `learned_v1` fallback path
+(`src/aegis/eval/learned.py:recommend_auto` — tries
+`assets/model/recommendation_v1.json` when `"trained": true`, else heuristic).
+Placeholder ships `"trained": false`, so reports honestly carry
+`recommendation_model: "heuristic_v1"` until a real calibration lands.
 
 ```python
 def _recommendation(m):

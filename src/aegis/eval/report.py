@@ -5,11 +5,7 @@ from typing import Any
 
 from aegis.config.models import PhysicalAIYaml
 from aegis.eval.metrics import summarize
-from aegis.eval.recommendation import (
-    RECOMMENDATION_MODEL,
-    extract_features,
-    recommend,
-)
+from aegis.eval.recommendation import extract_features
 from aegis.eval.runner import EpisodeResult
 
 
@@ -50,7 +46,9 @@ def build_report(
         warnings.append("domain randomization enabled (seeded MuJoCo DR: light/friction/camera)")
     gpu_h = _gpu_hours(cfg, m)
     features = extract_features(m, gpu_hours=gpu_h, dr_enabled=dr_enabled)
-    structured = recommend(m, features)
+    from aegis.eval.learned import recommend_auto
+
+    structured, model_name = recommend_auto(m, features)
     report = {
         "run_id": run_id,
         "model": cfg.model.name,
@@ -74,7 +72,7 @@ def build_report(
         "total_steps": m["total_steps"],
         "total_duration_s": m["total_duration_s"],
         "recommendation": _recommendation(m),
-        "recommendation_model": RECOMMENDATION_MODEL,
+        "recommendation_model": model_name,
         "recommendation_label": structured["label"],
         "recommendation_confidence": structured["confidence"],
         "recommendation_evidence": structured["evidence"],

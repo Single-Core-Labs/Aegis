@@ -10,3 +10,6 @@ domain_randomization: false
 dr_light_jitter_m: 0.1
 dr_friction_delta: 0.002
 dr_camera_jitter_m: 0.02
+# P3b expansion: object yaw (rad) + gripper actuation noise. 0 = off (legacy).
+dr_object_yaw_rad: 0.0
+dr_gripper_noise: 0.0

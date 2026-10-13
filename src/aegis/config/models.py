@@ -169,6 +169,10 @@ class TaskSpec(BaseModel):
     dr_light_jitter_m: float = Field(default=0.1, ge=0, le=1.0)
     dr_friction_delta: float = Field(default=0.002, ge=0, le=1.0)
     dr_camera_jitter_m: float = Field(default=0.02, ge=0, le=0.5)
+    # P3b expansion (MuJoCo-only, seeded per episode): object yaw + gripper
+    # actuation noise. Defaults keep legacy behavior (yaw 0 = off).
+    dr_object_yaw_rad: float = Field(default=0.0, ge=0, le=0.5)
+    dr_gripper_noise: float = Field(default=0.0, ge=0, le=0.2)
 
 
 class OutputSpec(BaseModel):
